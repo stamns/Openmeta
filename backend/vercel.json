@@ -18,6 +18,14 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
+    { "src": "api/index.py", "use": "@vercel/python" },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "assets/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "/api/index.py" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "env": {
     "PANSOU_HOST": "@pansou_host",
@@ -25,4 +33,9 @@
     "PANSOU_PWD": "@pansou_pwd"
   },
   "devCommand": "uvicorn main:app --reload --port 3000"
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 10
+    }
+  }
 }
