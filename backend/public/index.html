@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenMeta</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>OpenMeta</h1>
+      <p class="muted">Vercel / Docker / Local 部署示例</p>
+
+      <form id="searchForm" class="row">
+        <input id="q" name="q" placeholder="输入关键词" autocomplete="off" />
+        <button type="submit">搜索</button>
+      </form>
+
+      <pre id="output" class="output">{}</pre>
+
+      <p class="muted">
+        API: <code>/api/search?q=...</code>
+      </p>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

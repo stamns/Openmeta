@@ -1,3 +1,4 @@
+from openmeta.main import app
 from __future__ import annotations
 
 import os

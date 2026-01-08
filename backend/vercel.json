@@ -1,6 +1,23 @@
 {
   "version": 2,
   "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api(?:/(.*))?",
+      "dest": "api/index.py"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
     { "src": "api/index.py", "use": "@vercel/python" },
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "assets/**", "use": "@vercel/static" }
@@ -15,6 +32,7 @@
     "PANSOU_USER": "@pansou_user",
     "PANSOU_PWD": "@pansou_pwd"
   },
+  "devCommand": "uvicorn main:app --reload --port 3000"
   "functions": {
     "api/index.py": {
       "maxDuration": 10
