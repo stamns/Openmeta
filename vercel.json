@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "backend/api/index.py", "use": "@vercel/python" },
+    { "src": "backend/index.html", "use": "@vercel/static" },
+    { "src": "backend/assets/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/assets/(.*)", "dest": "/backend/assets/$1" },
+    { "src": "/api/(.*)", "dest": "/backend/api/index.py" },
+    { "src": "/(.*)", "dest": "/backend/index.html" }
+  ],
+  "env": {
+    "PANSOU_HOST": "@pansou_host",
+    "PANSOU_USER": "@pansou_user",
+    "PANSOU_PWD": "@pansou_pwd"
+  },
+  "functions": {
+    "backend/api/index.py": {
+      "maxDuration": 10
+    }
+  }
+}
