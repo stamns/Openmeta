@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.dist-info/
+.venv/
+venv/
+ENV/
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Editors
+.vscode/
+.idea/

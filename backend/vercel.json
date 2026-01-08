@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api(?:/(.*))?",
+      "dest": "api/index.py"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "PANSOU_HOST": "@pansou_host",
+    "PANSOU_USER": "@pansou_user",
+    "PANSOU_PWD": "@pansou_pwd"
+  },
+  "devCommand": "uvicorn main:app --reload --port 3000"
+}

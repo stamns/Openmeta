@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  openmeta:
+    build: .
+    container_name: openmeta
+    ports:
+      - "8000:8000"
+    environment:
+      - PANSOU_HOST=${PANSOU_HOST}
+      - PANSOU_USER=${PANSOU_USER}
+      - PANSOU_PWD=${PANSOU_PWD}
+    restart: unless-stopped
