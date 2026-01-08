@@ -6,8 +6,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    pansou_host: str = "http://112.124.53.114:8888"
-    pansou_user: str = "admin"
+    pansou_host: str = ""
+    pansou_user: str = ""
     pansou_pwd: str = ""
 
     redis_host: str | None = None

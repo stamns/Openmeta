@@ -1,4 +1,4 @@
-name: openmeta
+version: "3.8"
 
 x-logging: &default-logging
   driver: json-file
