@@ -155,6 +155,8 @@ This repository is structured to support **three deployment layers**:
 - 🔧 **易于部署**: 一键部署到多个平台
 - 📊 **完整监控**: 健康检查和性能监控
 - 🔒 **安全可靠**: CORS 配置和环境变量管理
+- 🎯 **智能认证**: Token 自动刷新和并发控制（v1.1.0）
+- 🔄 **容错机制**: 友好的错误处理和自动重试
 
 ## 🏗️ 架构概览
 
