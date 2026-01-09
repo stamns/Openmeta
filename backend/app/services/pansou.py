@@ -1,39 +1,22 @@
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
-
-@dataclass(frozen=True)
-class PanSouConfig:
-    host: str | None
-    user: str | None
-    password: str | None
-
-
-@lru_cache(maxsize=1)
-def get_pansou_config() -> PanSouConfig:
-    return PanSouConfig(
-        host=os.getenv("PANSOU_HOST"),
-        user=os.getenv("PANSOU_USER"),
-        password=os.getenv("PANSOU_PWD"),
-    )
+from ..settings import settings
 
 
 async def pansou_search(query: str) -> dict[str, Any]:
     """Search via PanSou.
 
+    If PANSOU_HOST is not configured, returns an empty result set.
+
     Cold start optimization:
     - httpx is imported lazily
     - client is cached across invocations (best effort, depends on runtime reuse)
-
-    If PANSOU_HOST is not configured, returns an empty result set.
     """
 
-    cfg = get_pansou_config()
-    if not cfg.host:
+    if not settings.pansou_host:
         return {
             "provider": "pansou",
             "enabled": False,
@@ -42,18 +25,21 @@ async def pansou_search(query: str) -> dict[str, Any]:
             "message": "PANSOU_HOST is not configured",
         }
 
-    import httpx
-
-    base_url = cfg.host.rstrip("/")
+    base_url = settings.pansou_host.rstrip("/")
     url = f"{base_url}/api/search"
 
     auth = None
-    if cfg.user and cfg.password:
-        auth = (cfg.user, cfg.password)
+    if settings.pansou_user and settings.pansou_pwd:
+        auth = (settings.pansou_user, settings.pansou_pwd)
 
     client = _get_async_client()
     try:
-        resp = await client.get(url, params={"q": query}, auth=auth, timeout=10.0)
+        resp = await client.get(
+            url,
+            params={"q": query},
+            auth=auth,
+            timeout=float(settings.search_timeout),
+        )
         resp.raise_for_status()
         data = resp.json()
         return {

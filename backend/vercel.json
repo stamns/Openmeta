@@ -4,27 +4,20 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
-    {
-      "src": "/api(?:/(.*))?",
-      "dest": "api/index.py"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-    { "src": "api/index.py", "use": "@vercel/python" },
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "assets/**", "use": "@vercel/static" }
-  ],
-  "routes": [
+    { "src": "/health", "dest": "api/index.py" },
+    { "src": "/api/(.*)", "dest": "api/index.py" },
     { "handle": "filesystem" },
-    { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
   "env": {
@@ -41,4 +34,5 @@
     }
   },
   "regions": ["hkg1", "sin1"]
+  ]
 }

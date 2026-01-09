@@ -11,20 +11,36 @@ for arg in "$@"; do
   esac
 done
 
-if [ ! -f "$ROOT_DIR/vercel.json" ]; then
+PYTHON_BIN=""
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+else
+  echo "[ERR] 未安装 Python（用于校验 vercel.json）" >&2
+  exit 1
+fi
+
+VERCEL_JSON="$ROOT_DIR/vercel.json"
+if [ ! -f "$VERCEL_JSON" ]; then
   echo "[ERR] 缺少 vercel.json" >&2
   exit 1
 fi
 
-grep -q '"api/index.py"' "$ROOT_DIR/vercel.json" || {
-  echo "[ERR] vercel.json 未包含 api/index.py 构建配置" >&2
-  exit 1
-}
-
-grep -q 'frontend/package.json' "$ROOT_DIR/vercel.json" || {
-  echo "[ERR] vercel.json 未包含前端静态构建配置（frontend/package.json）" >&2
-  exit 1
-}
+# 基础校验：JSON 可解析 + 包含关键构建项
+"$PYTHON_BIN" - <<PY
+import json
+from pathlib import Path
+p = Path(r"$VERCEL_JSON")
+obj = json.loads(p.read_text(encoding="utf-8"))
+builds = obj.get("builds", [])
+srcs = {b.get("src") for b in builds if isinstance(b, dict)}
+need = {"backend/api/index.py", "frontend/package.json"}
+missing = sorted(need - srcs)
+if missing:
+    raise SystemExit("vercel.json 缺少 builds.src：" + ", ".join(missing))
+print("[OK] vercel.json 校验通过")
+PY
 
 get_env() {
   local key="$1"
@@ -33,7 +49,7 @@ get_env() {
     return 0
   fi
   if [ -f "$ROOT_DIR/.env" ]; then
-    awk -F= -v k="$key" 'BEGIN{v=""} $0 ~ "^"k"=" {sub("^"k"=","",$0); print $0; exit 0}' "$ROOT_DIR/.env" || true
+    awk -F= -v k="$key" '$0 ~ "^"k"=" {sub("^"k"=","",$0); print $0; exit 0}' "$ROOT_DIR/.env" || true
     return 0
   fi
   echo ""
@@ -49,21 +65,24 @@ for k in "${required[@]}"; do
 done
 
 if [ "${#missing[@]}" -gt 0 ]; then
-  echo "[WARN] 未检测到以下环境变量（Vercel 部署时必须在 Dashboard 中配置）：" >&2
+  echo "[WARN] 未检测到以下环境变量：" >&2
   printf '  - %s\n' "${missing[@]}" >&2
+  echo "      不配置也可以部署，但 /api/search 将返回空结果（建议生产环境补齐 PanSou 配置）。" >&2
 fi
 
 echo ""
-echo "[INFO] Vercel 部署步骤（推荐）："
-echo "  1) 将代码推送到 GitHub（Vercel 通过 Git 集成自动构建）"
+echo "[INFO] Vercel 部署（推荐：GitHub 自动部署）"
+echo "  1) 将代码推送到 GitHub"
 echo "  2) 打开 https://vercel.com/new 导入仓库"
-echo "  3) Environment Variables 中配置：PANSOU_HOST / PANSOU_USER / PANSOU_PWD（以及可选的 LOG_LEVEL 等）"
-echo "  4) Deploy 后等待构建完成"
-echo "  5) 绑定域名：Project -> Settings -> Domains"
+echo "  3) 保持 Root Directory 为仓库根目录（本仓库提供根目录 vercel.json）"
+echo "  4) Project -> Settings -> Environment Variables：配置 PANSOU_HOST / PANSOU_USER / PANSOU_PWD（以及可选 LOG_LEVEL 等）"
+echo "  5) Deploy，等待构建完成"
+echo "  6) 域名绑定：Project -> Settings -> Domains"
+
 echo ""
-echo "[INFO] 成本说明："
-echo "  - 个人/小流量场景可使用 Vercel Free"
-echo "  - 需要自定义团队协作、带宽/并发更高、SLA 等可升级 Pro"
+echo "[INFO] 成本说明"
+echo "  - Free：适合个人/小流量站点（可能有冷启动与配额限制）"
+echo "  - Pro：适合更高并发/更高配额/团队协作"
 
 echo ""
 if [ "$DEPLOY" -eq 1 ] || [ "${AUTO_DEPLOY:-0}" -eq 1 ]; then
@@ -74,6 +93,6 @@ if [ "$DEPLOY" -eq 1 ] || [ "${AUTO_DEPLOY:-0}" -eq 1 ]; then
   echo "[INFO] 尝试通过 Vercel CLI 进行生产部署（需要提前 vercel login）"
   vercel deploy --prod --yes
 else
-  echo "[INFO] 可选：自动部署（需要 Vercel CLI 已登录）"
+  echo "[INFO] 可选：使用 Vercel CLI 自动部署（需要已登录）"
   echo "      执行：./scripts/deploy-vercel.sh --deploy"
 fi

@@ -66,3 +66,12 @@ app = get_app()
 
 # 为了向后兼容，导出 app
 __all__ = ["app"]
+from mangum import Mangum
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from backend.app.main import app  # noqa: E402
+
+handler = Mangum(app)
