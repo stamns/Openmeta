@@ -23,5 +23,14 @@ class Settings(BaseSettings):
 
     cors_allow_origins: str = "*"
 
+    def validate(self) -> None:
+        """验证必要的环境变量"""
+        if not self.pansou_host:
+            raise ValueError("❌ 缺少环境变量: PANSOU_HOST")
+        if not self.pansou_user:
+            raise ValueError("❌ 缺少环境变量: PANSOU_USER")
+        if not self.pansou_pwd:
+            raise ValueError("❌ 缺少环境变量: PANSOU_PWD")
+
 
 settings = Settings()  # type: ignore[call-arg]

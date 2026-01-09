@@ -155,13 +155,18 @@ async def internal_error_handler(request, exc):
 async def startup_event():
     """应用启动时的初始化"""
     logger.info("OpenMeta 应用启动")
-    logger.info(f"PanSou 主机: {settings.pansou_host}")
-    logger.info(f"日志级别: {settings.log_level}")
-    logger.info(f"CORS 允许源: {settings.cors_allow_origins}")
-    
-    # 验证 PanSou 配置
-    if not settings.pansou_host:
-        logger.warning("PANSOU_HOST 未配置，搜索功能将不可用")
+
+    # 验证必要的环境变量
+    try:
+        settings.validate()
+        logger.info("✅ 所有必要的环境变量已配置")
+        logger.info(f"PanSou 主机: {settings.pansou_host}")
+        logger.info(f"PanSou 用户: {settings.pansou_user}")
+        logger.info(f"日志级别: {settings.log_level}")
+        logger.info(f"CORS 允许源: {settings.cors_allow_origins}")
+    except ValueError as e:
+        logger.error(f"环境变量配置错误: {e}")
+        logger.warning("⚠️  搜索功能将不可用，请配置必要的环境变量")
 
 # 应用关闭事件
 @app.on_event("shutdown")
