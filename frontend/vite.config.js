@@ -14,8 +14,15 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       assetsDir: 'assets',
       emptyOutDir: true,
+    base: '/',  // 部署到根路径
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: mode === 'development'
     },
     server: {
+      host: '0.0.0.0',
+      port: 5173,
       proxy: {
         '/api': {
           target: backend,
