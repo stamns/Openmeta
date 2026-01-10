@@ -33,12 +33,6 @@ services:
         reservations:
           memory: 256M
           cpus: "0.25"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
 
   nginx:
     build:
@@ -60,6 +54,12 @@ services:
       retries: 3
       start_period: 5s
     logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     tmpfs:
       - /tmp
       - /var/run
@@ -94,6 +94,12 @@ services:
       retries: 3
       start_period: 5s
     logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     deploy:
       resources:
         limits:

@@ -13,7 +13,7 @@ RUN npm run build
 
 FROM nginx:1.25-alpine
 
-# 创建非 root 用户（与 backend 保持一致的 UID）
+# 创建非 root 用户（UID 1000，与 backend 保持一致）
 RUN addgroup -g 1000 appuser && \
     adduser -u 1000 -G appuser -s /bin/sh -D appuser
 
@@ -36,6 +36,15 @@ RUN mkdir -p /var/cache/nginx/api_cache \
                            /tmp/nginx \
                            /usr/share/nginx/html && \
     chmod -R 755 /var/cache/nginx /var/log/nginx /var/run
+             /var/cache/nginx/client_temp \
+             /var/run/nginx \
+             /var/log/nginx \
+             /tmp/nginx && \
+    chown -R appuser:appuser /var/cache/nginx \
+                          /var/log/nginx \
+                          /var/run/nginx \
+                          /tmp/nginx \
+                          /usr/share/nginx/html
 
 # 切换到非 root 用户
 USER appuser
