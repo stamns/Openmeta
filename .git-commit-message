@@ -1,0 +1,74 @@
+feat: Docker 容器安全性和可靠性改进
+
+实现非 root 用户运行、完整健康检查、资源限制和自动故障转移
+
+## 核心改进
+
+### 1. 非 root 用户运行
+- Backend: appuser (UID 1000)
+- Nginx: appuser (UID 1000)
+- 所有目录权限正确配置
+
+### 2. 完整健康检查
+- 检查间隔: 10s
+- 超时: 3s
+- 重试: 3 次
+- Backend 启动宽限期: 30s
+
+### 3. 资源限制
+- Backend: 512MB 内存, 0.5 CPU
+- Nginx: 256MB 内存, 0.25 CPU
+- Redis: 256MB 内存, 0.25 CPU
+- 日志: 10MB x 5 文件
+
+### 4. 安全配置
+- no-new-privileges 启用
+- Linux capabilities 最小化
+- 安全环境变量配置
+
+### 5. 自动故障转移
+- restart: unless-stopped
+- Nginx depends_on backend health
+- 自动检测和恢复
+
+## 验收标准
+
+✅ 容器以 appuser (UID 1000) 运行
+✅ docker ps 显示 (healthy)
+✅ 后端崩溃时 Nginx 返回 502
+✅ 内存限制生效
+✅ 日志不无限增长
+
+## 文件改动
+
+修改:
+- backend/Dockerfile
+- deploy/nginx/Dockerfile
+- deploy/nginx/nginx.conf
+- docker-compose.yml
+- docker-compose-prod.yml
+
+新增:
+- scripts/test-docker-security.sh
+- scripts/test-failover.sh
+- scripts/acceptance-test.sh
+- scripts/quick-verify.sh
+- docs/docker-security-reliability.md
+- docs/before-after-comparison.md
+- docs/quick-start-security.md
+- docs/deployment-checklist.md
+- DOCKER-SECURITY-COMPLETE.md
+- IMPLEMENTATION-SUMMARY.md
+- CHANGES.md
+
+## 测试
+
+所有配置验证通过:
+```bash
+./scripts/quick-verify.sh
+```
+
+完整验收测试:
+```bash
+./scripts/acceptance-test.sh
+```

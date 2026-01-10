@@ -20,13 +20,23 @@ services:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\")' || exit 1"]
       interval: 10s
       timeout: 3s
-      retries: 20
+      retries: 3
+      start_period: 30s
     logging: *default-logging
     deploy:
       resources:
         limits:
           memory: 512M
           cpus: "0.50"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
 
   nginx:
     build:
@@ -41,12 +51,30 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     logging: *default-logging
     deploy:
       resources:
         limits:
           memory: 256M
           cpus: "0.25"
+        reservations:
+          memory: 128M
+          cpus: "0.10"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
 
   redis:
     image: redis:7-alpine
@@ -54,12 +82,23 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     logging: *default-logging
     deploy:
       resources:
         limits:
           memory: 256M
           cpus: "0.25"
+        reservations:
+          memory: 128M
+          cpus: "0.10"
+    security_opt:
+      - no-new-privileges:true
     profiles: ["redis"]
 
   redis-backup:

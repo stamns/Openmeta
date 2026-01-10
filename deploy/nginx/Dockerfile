@@ -13,6 +13,10 @@ RUN npm run build
 
 FROM nginx:1.25-alpine
 
+# 创建非 root 用户（与 backend 保持一致的 UID）
+RUN addgroup -g 1000 appuser && \
+    adduser -u 1000 -G appuser -s /bin/sh -D appuser
+
 # 复制自定义 nginx 配置
 COPY deploy/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx_conf/default.conf /etc/nginx/conf.d/default.conf
@@ -20,16 +24,20 @@ COPY nginx_conf/default.conf /etc/nginx/conf.d/default.conf
 # 复制前端构建产物
 COPY --from=frontend-build /work/frontend/dist /usr/share/nginx/html
 
-# 创建缓存目录
-RUN mkdir -p /var/cache/nginx && \
-    chown -R nginx:nginx /var/cache/nginx /var/log/nginx
+# 创建缓存和日志目录，设置权限
+RUN mkdir -p /var/cache/nginx/api_cache /var/log/nginx /var/run /var/cache/nginx/client_temp && \
+    chown -R appuser:appuser /var/cache/nginx /var/log/nginx /usr/share/nginx/html && \
+    chown -R appuser:appuser /var/run && \
+    chmod -R 755 /var/cache/nginx /var/log/nginx
+
+# 切换到非 root 用户
+USER appuser
 
 # 暴露端口
 EXPOSE 80
 
 # 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://localhost/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
-RUN mkdir -p /var/cache/nginx/api_cache && chown -R nginx:nginx /var/cache/nginx
