@@ -1,411 +1,332 @@
-# OpenMeta Vercel 无服务器部署指南
+# Vercel 无服务器部署指南
 
-本指南将帮助您将 OpenMeta 部署到 Vercel 平台，实现本地、Docker、Vercel 三层部署支持。
+本文档介绍如何将 OpenMeta 部署到 Vercel 平台，实现自动构建、全球边缘网络和免费额度。
 
-## 🚀 部署特性
+## 📋 目录
 
-- **三层部署**: 同时支持本地开发、Docker 容器化和 Vercel 无服务器部署
-- **全球加速**: 自动获得 HTTPS、CDN、全球边缘节点加速
-- **冷启动优化**: 针对无服务器环境的性能优化
-- **环境隔离**: 开发、预览、生产环境独立配置
+- [前置要求](#前置要求)
+- [环境变量配置](#环境变量配置)
+- [部署步骤](#部署步骤)
+- [本地测试](#本地测试)
+- [GitHub 自动部署](#github-自动部署)
+- [自定义域名](#自定义域名)
+- [故障排查](#故障排查)
 
-## 📋 部署前准备
+## 前置要求
 
-### 1. 必要条件
+- [Vercel 账户](https://vercel.com/signup)（免费）
+- [GitHub 账户](https://github.com/signup)
+- 代码仓库已推送到 GitHub
 
-- Vercel 账号 ([注册地址](https://vercel.com/signup))
-- GitHub 仓库 (或使用 Vercel 直接上传)
-- PanSou 搜索服务地址
+## 环境变量配置
 
-### 2. 环境变量配置
+### 必需的环境变量
 
-#### 本地开发环境
+在 Vercel Dashboard 中配置以下环境变量：
 
-```bash
-# 复制环境变量模板
-cp backend/.env.local.example backend/.env.local
+| 变量名 | 说明 | 示例 |
+|--------|------|------|
+| `PANSOU_HOST` | PanSou 服务器地址 | `https://pansou.example.com` |
+| `PANSOU_USER` | PanSou 用户名 | `your_username` |
+| `PANSOU_PWD` | PanSou 密码 | `your_password` |
 
-# 编辑配置文件
-vim backend/.env.local
+### 可选的环境变量
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `SEARCH_TIMEOUT` | 搜索超时时间（秒） | `15` |
+| `LOG_LEVEL` | 日志级别 | `INFO` |
+| `CORS_ALLOW_ORIGINS` | CORS 允许的源 | `*` |
+
+### 配置步骤
+
+1. 访问 [Vercel Dashboard](https://vercel.com/dashboard)
+2. 选择你的项目
+3. 进入 **Settings** → **Environment Variables**
+4. 添加以下环境变量：
+
+```
+PANSOU_HOST = https://your-pansou-server.com
+PANSOU_USER = your_username
+PANSOU_PWD = your_password
 ```
 
-#### Vercel 环境变量设置
+5. 选择应用范围：
+   - **Production**: 生产环境
+   - **Preview**: 预览环境（每个 Pull Request）
+   - **Development**: 开发环境
 
-在 Vercel Dashboard 中设置以下环境变量：
+6. 点击 **Save** 保存
 
-1. 登录 [Vercel Dashboard](https://vercel.com/dashboard)
-2. 选择您的 OpenMeta 项目
-3. 进入 `Settings` > `Environment Variables`
-4. 添加以下变量：
+## 部署步骤
 
-| 变量名 | 示例值 | 说明 |
-|--------|--------|------|
-| `PANSOU_HOST` | `http://112.124.53.114:8888` | PanSou 服务器地址 |
-| `PANSOU_USER` | `admin` | PanSou 用户名（可选） |
-| `PANSOU_PWD` | `your_password` | PanSou 密码（可选） |
+### 方法一：通过 Vercel CLI 部署
 
-## 🛠️ 部署步骤
+1. 安装 Vercel CLI：
+```bash
+npm install -g vercel
+```
 
-### 方案一：通过 GitHub 集成部署（推荐）
+2. 登录 Vercel：
+```bash
+vercel login
+```
 
-1. **推送代码到 GitHub**
-   ```bash
-   git add .
-   git commit -m "feat: 添加 Vercel 无服务器部署支持"
-   git push origin main
-   ```
+3. 在项目根目录运行：
+```bash
+vercel
+```
 
-2. **连接 GitHub 到 Vercel**
-   - 登录 [Vercel Dashboard](https://vercel.com/dashboard)
-   - 点击 "New Project"
-   - 选择 "Import Git Repository"
-   - 授权 GitHub 访问并选择您的仓库
+4. 按照提示操作：
+   - 设置项目名称
+   - 选择部署范围（Production/Preview/Development）
+   - 确认环境变量
 
-3. **配置项目设置**
+5. 部署完成后，Vercel 会提供一个 URL，如：
+```
+https://openmeta-xxx.vercel.app
+```
+
+### 方法二：通过 GitHub 集成部署
+
+1. 在 Vercel Dashboard 中点击 **Add New Project**
+2. 选择 **Import Git Repository**
+3. 选择你的 GitHub 仓库
+4. 配置项目：
    - **Framework Preset**: Other
-   - **Root Directory**: `backend`
-   - **Build Command**: `echo "No build needed"`
-   - **Output Directory**: `echo "Static files"`
+   - **Root Directory**: `./`（保持默认）
+   - **Build Command**: 自动检测
+   - **Output Directory**: 自动检测
 
-4. **添加环境变量**
-   - 在项目设置中添加 PanSou 相关环境变量
+5. 配置环境变量（见上文）
+6. 点击 **Deploy**
 
-5. **部署**
-   - 点击 "Deploy" 开始部署
+## 本地测试
 
-### 方案二：Vercel CLI 部署
+### 安装 Vercel CLI
 
-1. **安装 Vercel CLI**
-   ```bash
-   npm install -g vercel
-   ```
+```bash
+npm install -g vercel
+```
 
-2. **登录 Vercel**
-   ```bash
-   vercel login
-   ```
+### 启动本地开发服务器
 
-3. **部署**
-   ```bash
-   cd backend
-   vercel
-   ```
+```bash
+# 在项目根目录
+vercel dev
+```
 
-4. **设置环境变量**
-   ```bash
-   vercel env add PANSOU_HOST
-   vercel env add PANSOU_USER
-   vercel env add PANSOU_PWD
-   ```
+这将启动本地开发服务器：
+- 前端：http://localhost:3000
+- API：http://localhost:3000/api/*
+- 健康检查：http://localhost:3000/health
 
-### 方案三：本地开发测试
+### 测试健康检查
 
-1. **安装依赖**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
+```bash
+curl http://localhost:3000/health
+```
 
-2. **配置环境变量**
-   ```bash
-   cp .env.local.example .env.local
-   # 编辑 .env.local 填入实际值
-   ```
+预期返回：
+```json
+{
+  "status": "ok",
+  "service": "OpenMeta",
+  "version": "1.0.0",
+  "pansou_host": "https://your-pansou-server.com"
+}
+```
 
-3. **启动服务**
-   ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
-   ```
+### 测试搜索功能
 
-4. **本地测试 Vercel 配置**
-   ```bash
-   # 安装 Vercel CLI
-   npm install -g vercel
+```bash
+curl "http://localhost:3000/api/search?q=测试&page=1"
+```
 
-   # 在 backend 目录下测试
-   cd backend
-   vercel dev
-   ```
+## GitHub 自动部署
 
-## 🔧 高级配置
+### 工作流程
 
-### 性能优化
+1. 推送代码到 GitHub（默认分支，通常是 `main` 或 `master`）
+2. Vercel 自动检测到新提交
+3. 触发构建和部署流程
+4. 构建日志显示在 Vercel Dashboard
+5. 部署完成后，新版本自动上线
+
+### Pull Request 自动预览
+
+每次创建或更新 Pull Request 时，Vercel 会：
+1. 自动创建一个预览部署
+2. 提供预览 URL（如：`https://openmeta-git-feature-branch-xxx.vercel.app`）
+3. 在 PR 页面显示部署状态和预览链接
+
+### 手动触发部署
+
+如果需要重新部署而不更改代码：
+
+1. 访问 Vercel Dashboard
+2. 选择项目
+3. 进入 **Deployments** 标签
+4. 找到之前的部署
+5. 点击 **...** → **Redeploy**
+
+## 自定义域名
+
+### 添加自定义域名
+
+1. 在 Vercel Dashboard 中进入项目设置
+2. 选择 **Domains**
+3. 输入你的域名（如：`openmeta.example.com`）
+4. 点击 **Add**
+
+### 配置 DNS
+
+Vercel 会自动检测 DNS 配置并提供两种选项：
+
+#### 选项 A：使用 Vercel DNS（推荐）
+
+将域名服务器（NS）更改为 Vercel 提供的值：
+```
+nameserver1.vercel-dns.com
+nameserver2.vercel-dns.com
+```
+
+#### 选项 B：使用 CNAME 记录
+
+如果你希望使用现有 DNS 提供商，添加以下记录：
+
+| 类型 | 名称 | 值 |
+|------|------|-----|
+| CNAME | `openmeta` | `cname.vercel-dns.com` |
+
+### 自动 HTTPS
+
+Vercel 会自动为你的自定义域名配置 SSL 证书（通过 Let's Encrypt），无需手动配置。
+
+## 故障排查
+
+### 问题 1：部署失败 - 找不到模块
+
+**错误信息**：
+```
+ModuleNotFoundError: No module named 'mangum'
+```
+
+**解决方案**：
+确保 `backend/requirements.txt` 包含所有必需的依赖：
+```txt
+fastapi
+uvicorn
+mangum
+python-dotenv
+```
+
+### 问题 2：环境变量未配置
+
+**错误信息**：
+```
+ValueError: Missing required environment variable: PANSOU_HOST
+```
+
+**解决方案**：
+1. 检查 Vercel Dashboard 中的环境变量配置
+2. 确保所有必需的变量都已添加
+3. 重新部署项目
+
+### 问题 3：API 请求失败
+
+**症状**：
+- 前端页面能加载
+- 搜索功能报错
+
+**解决方案**：
+1. 检查 `frontend/vite.config.js` 中的代理配置
+2. 确认 API 路由正确（`/api/search`）
+3. 检查 Vercel 日志：Dashboard → Deployments → View Logs
+
+### 问题 4：冷启动时间长
+
+**症状**：
+- 首次 API 请求需要 2-3 秒
+- 后续请求很快
+
+**说明**：
+这是正常的 Vercel Serverless 行为。项目已优化：
+- 延迟导入重型依赖
+- Token 缓存（59 分钟）
+- 连接池复用
+
+**进一步优化**：
+考虑升级到 Vercel Pro 计划以获得更长的函数执行时间。
+
+### 问题 5：静态资源 404
+
+**症状**：
+- 页面能加载但样式或脚本丢失
+
+**解决方案**：
+1. 检查 `vercel.json` 中的 routes 配置
+2. 确保 `frontend/dist` 目录正确构建
+3. 清除 Vercel 缓存：`vercel --force`
+
+## 部署前检查清单
+
+在部署之前，确保完成以下检查：
+
+- [ ] `vercel.json` 已正确配置
+- [ ] 所有环境变量已在 Vercel Dashboard 中配置
+- [ ] `backend/requirements.txt` 包含所有依赖
+- [ ] `frontend/package.json` 包含正确的构建脚本
+- [ ] `frontend/vite.config.js` 配置正确
+- [ ] 本地测试通过（`vercel dev`）
+- [ ] GitHub 仓库已连接到 Vercel
+- [ ] 健康检查端点正常（`/health`）
+- [ ] 搜索功能正常（`/api/search`）
+
+## 性能优化建议
+
+### 已实现的优化
 
 1. **冷启动优化**
-   - 使用延迟导入减少启动时间
-   - HTTP 连接池缓存
-   - 环境变量预加载
+   - 延迟导入重型依赖
+   - 减少启动时加载的模块
 
-2. **内存和超时配置**
-   ```json
-   {
-     "functions": {
-       "api/index.py": {
-         "maxDuration": 30,
-         "memory": 512
-       }
-     }
-   }
-   ```
+2. **Token 缓存**
+   - PanSou Token 缓存 59 分钟
+   - 减少重复登录请求
 
-3. **区域配置**
-   ```json
-   {
-     "regions": ["hkg1", "sin1"]
-   }
-   ```
+3. **并发控制**
+   - 使用 asyncio.Lock 确保并发安全
+   - Double-check locking 机制
 
-### 自定义域名
+4. **连接池复用**
+   - HTTP 客户端连接池
+   - 减少连接建立开销
 
-1. **添加域名**
-   - 在 Vercel Dashboard 中进入项目设置
-   - 点击 "Domains" 标签
-   - 添加您的自定义域名
+### 进一步优化
 
-2. **DNS 配置**
-   ```
-   类型: CNAME
-   名称: www
-   值: cname.vercel-dns.com
-   ```
+1. **启用 Vercel Edge Functions**
+   - 对于简单请求，考虑使用 Edge Functions（冷启动更快）
 
-### 自动部署配置
+2. **使用 CDN**
+   - Vercel 自动提供全球 CDN
+   - 确保静态资源有合适的缓存策略
 
-Git 推送时自动触发部署：
-- **main 分支** → 生产环境
-- **preview 分支** → 预览环境  
-- **feature 分支** → 开发环境
+3. **监控和分析**
+   - 使用 Vercel Analytics 监控性能
+   - 配置错误追踪（如 Sentry）
 
-## 📊 监控和维护
+## 相关文档
 
-### 1. 日志查看
+- [Vercel 官方文档](https://vercel.com/docs)
+- [Vercel Python Runtime](https://vercel.com/docs/concepts/functions/serverless-functions/runtimes/python)
+- [Mangum 文档](https://github.com/jordaneremieff/mangum)
+- [Vite 部署指南](https://vitejs.dev/guide/build.html)
 
-```bash
-# 查看函数日志
-vercel logs [项目名称]
+## 支持
 
-# 实时日志
-vercel logs [项目名称] --follow
-```
+如果遇到问题：
 
-### 2. 性能监控
-
-- 在 Vercel Dashboard 中查看：
-  - 函数执行时间
-  - 内存使用情况
-  - 错误率统计
-
-### 3. 常见问题排查
-
-#### 冷启动时间过长
-- 检查导入的依赖数量
-- 考虑使用更轻量级的替代方案
-- 启用函数连接（需要付费计划）
-
-#### 内存不足
-- 优化算法复杂度
-- 减少内存中的缓存
-- 考虑升级到更大的内存配置
-
-#### 搜索无响应
-- 检查 PanSou 服务状态
-- 验证环境变量配置
-- 查看函数日志获取错误详情
-
-## 🎯 访问方式
-
-部署成功后，您可以通过以下方式访问：
-
-### 生产环境
-- **前端**: `https://your-app-name.vercel.app`
-- **API**: `https://your-app-name.vercel.app/api/search`
-- **文档**: `https://your-app-name.vercel.app/docs`
-
-### 开发环境
-- **本地**: `http://localhost:8000`
-- **Vercel Dev**: `http://localhost:3000`
-
-## 🔄 三层部署对比
-
-| 特性 | 本地开发 | Docker | Vercel |
-|------|----------|---------|---------|
-| 部署速度 | 快速 | 中等 | 快速 |
-| 运维复杂度 | 低 | 中等 | 极低 |
-| 全球加速 | ❌ | ❌ | ✅ |
-| 自动扩展 | ❌ | 手动 | ✅ |
-| 成本 | 开发为主 | 服务器成本 | 按使用计费 |
-| 冷启动 | 无 | 无 | 有 |
-| 文件系统 | 读写 | 读写 | 只读 |
-
-## 📝 更新日志
-
-### v1.0.0 - Vercel 无服务器支持
-- ✅ 添加 Vercel 配置文件
-- ✅ 优化冷启动性能
-- ✅ 环境变量自动映射
-- ✅ 三层部署支持
-- ✅ 完整部署文档
-
-## 🤝 技术支持
-
-如有问题，请检查：
-
-1. **环境变量**是否正确配置
-2. **PanSou 服务**是否可访问
-3. **函数日志**中的错误信息
-4. **网络连接**是否正常
-
----
-
-**部署愉快！** 🎉
-# Vercel 无服务器部署指南（OpenMeta）
-
-## 1. 连接 GitHub → Vercel
-
-1. 在 Vercel Dashboard 点击 **Add New Project**
-2. 选择 GitHub 仓库并导入
-3. 推荐配置：Project Settings → **Root Directory** 选择 `backend`
-   - 这样 Vercel 会自动使用 `backend/vercel.json`
-   - 静态资源使用 `backend/public/`（Vercel 默认会把 `public/` 暴露为站点根路径）
-4. 点击 Deploy
-
-如果你不想设置 Root Directory，也可以使用 repo root 的 `vercel.json`（路径已写死到 `backend/`）。
-
-## 2. 路由与访问方式
-
-- 前端：`https://<your>.vercel.app/`
-- API：`https://<your>.vercel.app/api/search?q=xxx`
-
-`vercel.json` 中的规则：
-
-- `/api/*` → 转发到 `api/index.py`（Vercel Function）
-- 其它路径 → 优先走静态文件（filesystem），不存在则回退到 `index.html`（SPA）
-
-## 3. 环境变量配置
-
-### 3.1 在 Vercel Dashboard 设置
-
-进入 Project → Settings → Environment Variables：
-
-- `PANSOU_HOST`
-- `PANSOU_USER`
-- `PANSOU_PWD`
-
-按需分别设置到 Production / Preview / Development。
-
-### 3.2 vercel.json 中的映射
-
-在 `backend/vercel.json` / `vercel.json` 中默认写法为：
-
-- `PANSOU_HOST`: `@pansou_host`
-- `PANSOU_USER`: `@pansou_user`
-- `PANSOU_PWD`: `@pansou_pwd`
-
-这表示你可以用 Vercel Secrets：
-
-```bash
-vercel secrets add pansou_host 'https://example.com'
-vercel secrets add pansou_user 'user'
-vercel secrets add pansou_pwd  'pwd'
-```
-
-或者直接在 Dashboard 里配置变量（按团队规范选择）。
-
-### 3.3 本地 vercel dev 使用 .env.local
-
-在 `backend/` 目录创建 `.env.local`（不要提交到 git）：
-
-```env
-PANSOU_HOST=...
-PANSOU_USER=...
-PANSOU_PWD=...
-```
-
-Vercel CLI 会自动加载。
-
-## 4. vercel dev 本地测试
-
-```bash
-cd backend
-vercel dev
-
-# 验证
-curl 'http://localhost:3000/api/search?q=test'
-```
-
-同时打开 `http://localhost:3000/` 检查前端是否能正确调用 `/api/search`。
-
-## 5. 依赖与包体积（Serverless 友好）
-
-后端依赖位于 `backend/requirements.txt`，保持精简：
-
-- `fastapi`
-- `uvicorn`（本地/Docker）
-- `mangum`（Lambda/Vercel → ASGI 映射）
-- `httpx`（与 PanSou 通信）
-
-总包体积远低于 Vercel 限制（通常 250MB）。
-
-## 6. 冷启动优化
-
-已做：
-
-- `httpx` 在首次请求时才导入并创建连接池（延迟初始化）
-- 连接池在实例复用期间可复用
-
-建议：
-
-- 避免在 import 顶层执行网络请求
-- 把可选模块放到路由内部再 import
-- 外部请求设置短超时，并提供 fallback 返回
-
-## 7. 文件系统注意事项（Vercel 只读）
-
-- 不要写入本地文件（日志文件、cache 文件等）
-- 日志使用 stdout/stderr（`logging` 默认输出即可）
-- 缓存使用内存或外部服务（如 Redis / Vercel KV）
-
-## 8. 自动部署与环境区分
-
-- 每次 push 到连接分支会触发自动构建部署
-- Preview：PR/分支预览环境
-- Production：主分支/指定分支
-
-建议为 Preview/Production 设置不同的 PanSou 环境变量。
-
-### 8.1 域名绑定（Custom Domain）
-
-1. Vercel Dashboard → Project → Settings → Domains
-2. 添加你的域名（例如 `openmeta.example.com`）
-3. 按提示在域名服务商处配置 CNAME/A 记录
-4. DNS 生效后，Vercel 会自动签发/续期 HTTPS 证书
-
-## 9. 测试与验证
-
-- 验证 `GET /api/search?q=test` 是否返回 JSON
-- 验证前端页面是否能调用 `/api/search`
-- 观察首次请求（冷启动）耗时与后续请求耗时
-
-## 10. 故障排查指南
-
-### 10.1 502/函数报错
-
-- Vercel Dashboard → Project → Functions → 查看日志
-- 确认 `PANSOU_HOST` 等环境变量已设置
-- 连接 PanSou 超时会返回 `source=fallback` 并携带 `error`
-
-### 10.2 前端页面可以打开，但 API 调用失败
-
-- 检查请求路径是否为同域 `/api/search`
-- 检查 `vercel.json` 是否存在 `/api/*` rewrite
-- 进入 Logs 查看 Function 是否被触发
-
-### 10.3 查看 Vercel 日志
-
-- Dashboard → Project → Functions → 选择函数 → Logs
-
-### 10.4 性能监控与优化
-
-- 观察冷启动耗时（首次请求）与后续请求耗时
-- 适当降低外部请求超时
-- 如果依赖外部缓存/数据库，优先选择低延迟的同区域服务
+1. 查看 [GitHub Issues](https://github.com/your-org/openmeta/issues)
+2. 检查 Vercel 部署日志
+3. 参考 [故障排查](#故障排查) 部分

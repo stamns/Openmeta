@@ -7,7 +7,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
+    base: '/',  // 部署到根路径
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: mode === 'development'
+    },
     server: {
+      host: '0.0.0.0',
+      port: 5173,
       proxy: {
         '/api': backend,
         '/health': backend
