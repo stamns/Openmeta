@@ -9,7 +9,8 @@ x-logging: &default-logging
 services:
   openmeta:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     env_file:
@@ -21,12 +22,16 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+      start_period: 5s
     logging: *default-logging
     deploy:
       resources:
         limits:
           memory: 512M
           cpus: "0.50"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
     security_opt:
       - no-new-privileges:true
     cap_drop:

@@ -36,6 +36,15 @@ services:
         limits:
           memory: 512M
           cpus: "0.50"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
 
   nginx:
     build:
@@ -74,6 +83,18 @@ services:
         limits:
           memory: 256M
           cpus: "0.25"
+        reservations:
+          memory: 128M
+          cpus: "0.10"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
 
   redis:
     image: redis:7-alpine
@@ -83,6 +104,7 @@ services:
       - redis-data:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -101,6 +123,11 @@ services:
         limits:
           memory: 256M
           cpus: "0.25"
+        reservations:
+          memory: 128M
+          cpus: "0.10"
+    security_opt:
+      - no-new-privileges:true
     profiles: ["redis"]
 
   redis-backup:
