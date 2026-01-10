@@ -101,6 +101,9 @@ class TokenManager:
 # 全局单例
 _token_manager = TokenManager()
 
+# 导出供其他模块使用
+__all__ = ["pansou_search", "_token_manager"]
+
 
 async def pansou_search(query: str) -> dict[str, Any]:
     """
