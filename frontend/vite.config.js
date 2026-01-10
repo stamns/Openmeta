@@ -9,6 +9,22 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src')
+      }
+    },
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: mode === 'development',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor': ['vue']
+          }
+        }
+      }
     base: '/',
     build: {
       outDir: 'dist',
@@ -46,6 +62,10 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': resolve(__dirname, './src')
       }
+    },
+    preview: {
+      host: '0.0.0.0',
+      port: 4173
     }
   }
 })

@@ -23,6 +23,12 @@
       "dest": "backend/api/index.py"
     },
     {
+      "src": "/api/(.*)",
+      "dest": "/backend/api/index.py"
+    },
+    {
+      "src": "/health",
+      "dest": "/backend/api/index.py"
       "src": "/health",
       "src": "/health",
       "dest": "backend/api/index.py"
@@ -36,6 +42,9 @@
     },
     {
       "src": "/(.*)",
+      "dest": "/frontend/dist/index.html"
+    }
+  ],
       "dest": "/index.html"
     }
   ],

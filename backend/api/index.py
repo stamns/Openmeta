@@ -6,6 +6,7 @@ Supports FastAPI app running on Vercel.
 import sys
 from pathlib import Path
 
+# 设置正确的模块路径
 # Optimize path for module resolution
 current_dir = Path(__file__).resolve().parent
 backend_dir = current_dir.parent
@@ -103,6 +104,20 @@ def get_app():
         # Fallback error application
         from fastapi import FastAPI
         from fastapi.responses import JSONResponse
+        from fastapi.middleware.cors import CORSMiddleware
+
+        error_app = FastAPI(title="OpenMeta - Error")
+
+        error_app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["*"],
+        )
+
+        @error_app.get("/api/search")
+        async def error_endpoint():
         
         error_app = FastAPI(title="OpenMeta - Startup Error")
         
@@ -117,6 +132,23 @@ def get_app():
                     "context": "Vercel Serverless Function"
                 }
             )
+
+        @error_app.get("/health")
+        async def health_endpoint():
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "error",
+                    "error": "Service initialization failed"
+                }
+            )
+
+        return error_app
+
+# 获取 FastAPI 应用
+app = get_app()
+
+# Mangum handler for Vercel
         return error_app
 
 # Create the app instance for Vercel
@@ -127,6 +159,9 @@ app = get_application()
 from mangum import Mangum
 handler = Mangum(app)
 
+handler = Mangum(app)
+
+# 导出
         @error_app.get("/health")
         async def health_error():
             return JSONResponse(
