@@ -35,6 +35,9 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    volumes:
+      - nginx-cache:/var/cache/nginx
+      - nginx-logs:/var/log/nginx
     depends_on:
       backend:
         condition: service_healthy
@@ -72,3 +75,5 @@ services:
 volumes:
   redis-data:
   backup-data:
+  nginx-cache:
+  nginx-logs:
