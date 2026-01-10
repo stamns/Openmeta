@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     backend_port: int = 8000
 
     log_level: str = "INFO"
-    rate_limit_per_minute: int = 10
+    rate_limit_per_minute: int = 60
     search_timeout: int = 15
 
     cors_allow_origins: str = "*"
