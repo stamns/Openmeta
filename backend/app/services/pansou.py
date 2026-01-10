@@ -118,6 +118,9 @@ class TokenManager:
 # 全局单例
 _token_manager = TokenManager()
 
+# 导出供其他模块使用
+__all__ = ["pansou_search", "_token_manager"]
+
 
 def get_token_manager() -> TokenManager:
     """获取全局 Token 管理器实例"""
