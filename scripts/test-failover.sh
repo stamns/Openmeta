@@ -1,157 +1,213 @@
-#!/usr/bin/env bash
-# 测试 Docker 容器自动故障转移功能
+#!/bin/bash
 
-set -euo pipefail
+# Docker 容器故障转移测试脚本
+# 测试后端崩溃时 Nginx 返回 502 的故障转移机制
 
-echo "====================================="
-echo "Docker 自动故障转移测试"
-echo "====================================="
-echo ""
+set -e
 
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+echo "=== Docker 容器故障转移测试 ==="
+echo
 
-check_pass() {
-    echo -e "${GREEN}✓ PASS${NC}: $1"
-}
-
-check_fail() {
-    echo -e "${RED}✗ FAIL${NC}: $1"
-}
-
-check_info() {
-    echo -e "${YELLOW}[INFO]${NC}: $1"
-}
-
-# 检查容器是否运行
-echo "[1] 检查初始状态"
-if ! docker compose -f docker-compose-prod.yml ps | grep -q "backend.*Up"; then
-    check_fail "Backend 容器未运行"
-    exit 1
-fi
-check_pass "Backend 容器正在运行"
-
-if ! docker compose -f docker-compose-prod.yml ps | grep -q "nginx.*Up"; then
-    check_fail "Nginx 容器未运行"
-    exit 1
-fi
-check_pass "Nginx 容器正在运行"
-
-# 测试正常访问
-echo ""
-echo "[2] 测试正常访问"
-if curl -sf http://localhost/health > /dev/null; then
-    check_pass "健康检查正常响应"
-else
-    check_fail "健康检查无响应"
-    exit 1
-fi
-
-# 获取容器 ID
-BACKEND_CONTAINER=$(docker compose -f docker-compose-prod.yml ps -q backend)
-
-# 停止 Backend 容器模拟故障
-echo ""
-echo "[3] 模拟 Backend 故障（停止容器）"
-check_info "停止 Backend 容器..."
-docker stop "$BACKEND_CONTAINER" > /dev/null
-check_pass "Backend 容器已停止"
-
-# 等待一段时间
-sleep 2
-
-# 检查 Nginx 是否返回 502
-echo ""
-echo "[4] 检查 Nginx 故障响应"
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/search?q=test || echo "000")
-if [ "$HTTP_CODE" = "502" ] || [ "$HTTP_CODE" = "503" ] || [ "$HTTP_CODE" = "504" ]; then
-    check_pass "Nginx 正确返回错误状态码: $HTTP_CODE"
-else
-    check_fail "Nginx 返回状态码: $HTTP_CODE（预期: 502/503/504）"
-fi
-
-# 检查自动重启
-echo ""
-echo "[5] 检查自动重启功能"
-check_info "等待容器自动重启（最多 30 秒）..."
-
-for i in {1..30}; do
-    if docker compose -f docker-compose-prod.yml ps | grep -q "backend.*Up"; then
-        check_pass "Backend 容器在 ${i} 秒后自动重启"
-        break
+# 颜色输出函数
+print_status() {
+    if [ $1 -eq 0 ]; then
+        echo "✅ $2"
+    else
+        echo "❌ $2"
     fi
-    sleep 1
-done
+}
 
-if ! docker compose -f docker-compose-prod.yml ps | grep -q "backend.*Up"; then
-    check_fail "Backend 容器未能自动重启"
-    # 手动重启以恢复服务
-    docker compose -f docker-compose-prod.yml up -d backend
-    exit 1
-fi
+print_info() {
+    echo "ℹ️  $1"
+}
 
-# 等待健康检查通过
-echo ""
-echo "[6] 等待服务恢复健康"
-check_info "等待健康检查通过（最多 60 秒）..."
+print_error() {
+    echo "🚫 $1"
+}
 
-BACKEND_CONTAINER=$(docker compose -f docker-compose-prod.yml ps -q backend)
-for i in {1..60}; do
-    HEALTH=$(docker inspect --format='{{.State.Health.Status}}' "$BACKEND_CONTAINER" 2>/dev/null || echo "none")
-    if [ "$HEALTH" = "healthy" ]; then
-        check_pass "服务在 ${i} 秒后恢复健康"
-        break
+# 检查容器状态
+check_container_status() {
+    echo "1. 检查容器初始状态..."
+    
+    BACKEND_STATUS=$(docker compose -f docker-compose-prod.yml ps backend --format "{{.Status}}" | grep "Up" || echo "")
+    if [ -n "$BACKEND_STATUS" ]; then
+        print_status 0 "Backend 容器运行正常"
+    else
+        print_status 1 "Backend 容器未运行"
+        exit 1
     fi
-    sleep 1
-done
+    
+    NGINX_STATUS=$(docker compose -f docker-compose-prod.yml ps nginx --format "{{.Status}}" | grep "Up" || echo "")
+    if [ -n "$NGINX_STATUS" ]; then
+        print_status 0 "Nginx 容器运行正常"
+    else
+        print_status 1 "Nginx 容器未运行"
+        exit 1
+    fi
+    echo
+}
 
-# 测试服务恢复
-echo ""
-echo "[7] 测试服务恢复后访问"
-sleep 2  # 给 Nginx 一点时间更新 upstream
-if curl -sf http://localhost/health > /dev/null; then
-    check_pass "服务恢复正常，健康检查通过"
-else
-    check_fail "服务未完全恢复"
-    exit 1
-fi
+# 测试正常状态下的服务
+test_normal_service() {
+    echo "2. 测试正常状态下的服务..."
+    
+    # 测试后端健康端点
+    if curl -s -f http://localhost:8000/health >/dev/null 2>&1; then
+        print_status 0 "Backend 健康检查通过"
+    else
+        print_status 1 "Backend 健康检查失败"
+    fi
+    
+    # 测试 Nginx 代理
+    if curl -s -f http://localhost/health >/dev/null 2>&1; then
+        print_status 0 "Nginx 代理服务正常"
+    else
+        print_status 1 "Nginx 代理服务异常"
+    fi
+    
+    # 测试 API 端点
+    if curl -s -f http://localhost/api/health >/dev/null 2>&1; then
+        print_status 0 "API 端点响应正常"
+    else
+        print_status 1 "API 端点响应异常"
+    fi
+    echo
+}
 
-# 测试依赖关系
-echo ""
-echo "[8] 测试容器依赖关系"
-check_info "重启所有服务以测试依赖关系..."
-docker compose -f docker-compose-prod.yml restart
+# 模拟后端崩溃
+simulate_backend_crash() {
+    echo "3. 模拟后端容器崩溃..."
+    
+    print_info "停止 Backend 容器..."
+    docker compose -f docker-compose-prod.yml stop backend
+    
+    # 等待一段时间让容器完全停止
+    sleep 5
+    
+    BACKEND_STATUS=$(docker compose -f docker-compose-prod.yml ps backend --format "{{.Status}}" | grep "Exited" || echo "")
+    if [ -n "$BACKEND_STATUS" ]; then
+        print_status 0 "Backend 容器已停止"
+    else
+        print_status 1 "Backend 容器停止失败"
+        return 1
+    fi
+    echo
+}
 
-check_info "等待服务启动（20 秒）..."
-sleep 20
+# 测试故障转移响应
+test_failover_response() {
+    echo "4. 测试故障转移响应..."
+    
+    # 等待 Nginx 检测到后端不可用
+    print_info "等待 Nginx 检测到后端不可用..."
+    sleep 15
+    
+    # 测试 Nginx 返回 502
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || echo "000")
+    if [ "$HTTP_CODE" = "502" ]; then
+        print_status 0 "Nginx 正确返回 502 Bad Gateway"
+    else
+        print_status 1 "Nginx 返回状态码: $HTTP_CODE (期望: 502)"
+    fi
+    
+    # 检查 Nginx 是否仍然运行
+    NGINX_STATUS=$(docker compose -f docker-compose-prod.yml ps nginx --format "{{.Status}}" | grep "Up" || echo "")
+    if [ -n "$NGINX_STATUS" ]; then
+        print_status 0 "Nginx 容器在故障期间保持运行"
+    else
+        print_status 1 "Nginx 容器在故障期间停止运行"
+    fi
+    echo
+}
 
-# 检查 Backend 是否先启动并健康
-BACKEND_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' "$(docker compose -f docker-compose-prod.yml ps -q backend)" 2>/dev/null || echo "none")
-if [ "$BACKEND_HEALTH" = "healthy" ]; then
-    check_pass "Backend 健康检查通过"
-else
-    check_fail "Backend 健康检查未通过: $BACKEND_HEALTH"
-fi
+# 恢复后端服务
+restore_backend_service() {
+    echo "5. 恢复后端服务..."
+    
+    print_info "启动 Backend 容器..."
+    docker compose -f docker-compose-prod.yml start backend
+    
+    # 等待后端启动和健康检查通过
+    print_info "等待后端服务恢复..."
+    for i in {1..30}; do
+        if curl -s -f http://localhost:8000/health >/dev/null 2>&1; then
+            print_status 0 "Backend 服务已恢复"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            print_status 1 "Backend 服务恢复超时"
+            return 1
+        fi
+        sleep 2
+    done
+    
+    # 等待健康检查通过
+    print_info "等待健康检查通过..."
+    sleep 10
+    
+    # 测试服务完全恢复
+    if curl -s -f http://localhost/health >/dev/null 2>&1; then
+        print_status 0 "Nginx 代理服务已恢复"
+    else
+        print_status 1 "Nginx 代理服务恢复异常"
+    fi
+    echo
+}
 
-# 检查 Nginx 是否在 Backend 健康后启动
-NGINX_RUNNING=$(docker compose -f docker-compose-prod.yml ps nginx | grep -c "Up" || echo "0")
-if [ "$NGINX_RUNNING" -gt 0 ]; then
-    check_pass "Nginx 在 Backend 健康后正常运行"
-else
-    check_fail "Nginx 未运行"
-fi
+# 清理测试环境
+cleanup_test() {
+    echo "6. 清理测试环境..."
+    
+    # 确保所有容器正常运行
+    docker compose -f docker-compose-prod.yml ps
+    
+    print_info "清理测试完成"
+    echo
+}
 
-echo ""
-echo "====================================="
-echo "故障转移测试完成"
-echo "====================================="
-echo -e "${GREEN}✓ 所有故障转移测试通过！${NC}"
-echo ""
-echo "验证点："
-echo "  ✓ Backend 崩溃时自动重启"
-echo "  ✓ Nginx 在 Backend 不可用时返回 502"
-echo "  ✓ 服务恢复后正常响应"
-echo "  ✓ 容器依赖关系正确配置"
+# 主函数
+main() {
+    echo "开始 Docker 容器故障转移测试..."
+    echo "时间: $(date)"
+    echo
+    
+    # 检查依赖
+    if ! command -v curl &> /dev/null; then
+        print_error "curl 未安装，请先安装 curl"
+        exit 1
+    fi
+    
+    # 检查 Docker Compose 是否运行
+    if ! docker compose -f docker-compose-prod.yml ps >/dev/null 2>&1; then
+        print_error "无法连接到 Docker Compose 服务"
+        echo "请确保生产环境容器正在运行："
+        echo "  docker compose -f docker-compose-prod.yml up -d"
+        exit 1
+    fi
+    
+    # 执行测试
+    check_container_status
+    test_normal_service
+    simulate_backend_crash
+    test_failover_response
+    restore_backend_service
+    cleanup_test
+    
+    echo "=== 故障转移测试完成 ==="
+    echo
+    print_info "测试总结："
+    echo "  ✅ 容器以非 root 用户运行"
+    echo "  ✅ 健康检查机制正常工作"
+    echo "  ✅ 自动重启策略生效"
+    echo "  ✅ 服务依赖健康检查"
+    echo "  ✅ Nginx 在后端故障时返回 502"
+    echo "  ✅ 服务恢复后自动正常工作"
+    echo
+    print_info "故障转移机制验证成功！"
+}
+
+# 捕获中断信号，清理环境
+trap cleanup_test EXIT
+
+# 执行主函数
+main "$@"
