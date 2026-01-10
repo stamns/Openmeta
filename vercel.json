@@ -6,48 +6,6 @@
       "use": "@vercel/python"
     },
     {
-      "src": "backend/public/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api(?:/(.*))?",
-      "dest": "backend/api/index.py"
-    },
-    {
-      "src": "/(.*\\.(js|css|html))",
-      "dest": "backend/public/$1"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "backend/public/index.html"
-    }
-    { "src": "backend/api/index.py", "use": "@vercel/python" },
-    { "src": "backend/index.html", "use": "@vercel/static" },
-    { "src": "backend/assets/**", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/assets/(.*)", "dest": "/backend/assets/$1" },
-    { "src": "/api/(.*)", "dest": "/backend/api/index.py" },
-    { "src": "/(.*)", "dest": "/backend/index.html" }
-  ],
-  "env": {
-    "PANSOU_HOST": "@pansou_host",
-    "PANSOU_USER": "@pansou_user",
-    "PANSOU_PWD": "@pansou_pwd"
-  }
-  },
-  "functions": {
-    "backend/api/index.py": {
-      "maxDuration": 10
-    }
-  }
-}
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
@@ -56,9 +14,26 @@
     }
   ],
   "routes": [
-    { "src": "/health", "dest": "backend/api/index.py" },
-    { "src": "/api/(.*)", "dest": "backend/api/index.py" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+    {
+      "src": "/health",
+      "dest": "backend/api/index.py"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/api/index.py"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "functions": {
+    "backend/api/index.py": {
+      "maxDuration": 10,
+      "memory": 512
+    }
+  }
 }
