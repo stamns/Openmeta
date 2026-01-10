@@ -37,6 +37,7 @@ services:
       - "80:80"
     volumes:
       - nginx-cache:/var/cache/nginx
+      - nginx-logs:/var/log/nginx
     depends_on:
       backend:
         condition: service_healthy
@@ -75,3 +76,4 @@ volumes:
   redis-data:
   backup-data:
   nginx-cache:
+  nginx-logs:
