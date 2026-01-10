@@ -20,16 +20,25 @@ COPY nginx_conf/default.conf /etc/nginx/conf.d/default.conf
 # 复制前端构建产物
 COPY --from=frontend-build /work/frontend/dist /usr/share/nginx/html
 
-# 创建缓存目录
-RUN mkdir -p /var/cache/nginx && \
-    chown -R nginx:nginx /var/cache/nginx /var/log/nginx
+# 创建必要的目录并设置权限
+RUN mkdir -p /var/cache/nginx/api_cache \
+             /var/run/nginx \
+             /var/log/nginx \
+             /tmp/nginx && \
+    chown -R nginx:nginx /var/cache/nginx \
+                         /var/log/nginx \
+                         /var/run/nginx \
+                         /tmp/nginx \
+                         /usr/share/nginx/html
 
 # 暴露端口
 EXPOSE 80
 
+# 切换到非 root 用户
+USER nginx
+
 # 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://localhost/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
-RUN mkdir -p /var/cache/nginx/api_cache && chown -R nginx:nginx /var/cache/nginx
