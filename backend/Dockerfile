@@ -8,6 +8,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# 创建非 root 用户
+RUN groupadd -r appuser && useradd -r -g appuser -u 1000 appuser
 # 创建非 root 用户（UID 1000，与其他容器保持一致）
 RUN groupadd -g 1000 appuser && \
     useradd -u 1000 -g appuser -s /bin/sh -m appuser
@@ -28,7 +30,7 @@ USER appuser
 EXPOSE 8000
 
 # 健康检查
-HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" || exit 1
 
 CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

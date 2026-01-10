@@ -26,6 +26,16 @@ COPY --from=frontend-build /work/frontend/dist /usr/share/nginx/html
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /var/cache/nginx/api_cache \
+             /var/log/nginx \
+             /var/run/nginx \
+             /tmp/nginx \
+             /var/cache/nginx/client_temp && \
+    chown -R appuser:appuser /var/cache/nginx \
+                           /var/log/nginx \
+                           /var/run/nginx \
+                           /tmp/nginx \
+                           /usr/share/nginx/html && \
+    chmod -R 755 /var/cache/nginx /var/log/nginx /var/run
              /var/cache/nginx/client_temp \
              /var/run/nginx \
              /var/log/nginx \
