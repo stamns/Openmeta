@@ -9,6 +9,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # 创建非 root 用户
+RUN groupadd -r appuser && useradd -r -g appuser -u 1000 appuser
+
+# 安装依赖
 RUN groupadd -g 1000 appuser && \
     useradd -u 1000 -g appuser -s /bin/sh -m appuser
 
