@@ -9,7 +9,7 @@ import sys
 import os
 from pathlib import Path
 
-# 确保正确的模块路径
+# 设置正确的模块路径
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
@@ -24,8 +24,17 @@ def get_app():
         # 如果导入失败，返回一个基本的错误处理应用
         from fastapi import FastAPI
         from fastapi.responses import JSONResponse
+        from fastapi.middleware.cors import CORSMiddleware
 
         error_app = FastAPI(title="OpenMeta - Error")
+
+        error_app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["*"],
+        )
 
         @error_app.get("/api/search")
         async def error_endpoint():
@@ -40,21 +49,25 @@ def get_app():
                 }
             )
 
+        @error_app.get("/health")
+        async def health_endpoint():
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "error",
+                    "error": "Service initialization failed"
+                }
+            )
+
         return error_app
 
-# Vercel 入口点
+# 获取 FastAPI 应用
 app = get_app()
-
-# 为了向后兼容，导出 app
-__all__ = ["app"]
 
 # Mangum handler for Vercel
 from mangum import Mangum
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from backend.app.main import app  # noqa: E402
-
 handler = Mangum(app)
+
+# 导出
+__all__ = ["app", "handler"]
