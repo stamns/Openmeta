@@ -30,21 +30,16 @@ RUN mkdir -p /var/cache/nginx/api_cache \
              /var/run/nginx \
              /tmp/nginx \
              /var/cache/nginx/client_temp && \
+    chmod -R 755 /var/cache/nginx \
+                 /var/log/nginx \
+                 /var/run/nginx \
+                 /var/cache/nginx/client_temp \
+                 /tmp/nginx && \
     chown -R appuser:appuser /var/cache/nginx \
-                           /var/log/nginx \
-                           /var/run/nginx \
-                           /tmp/nginx \
-                           /usr/share/nginx/html && \
-    chmod -R 755 /var/cache/nginx /var/log/nginx /var/run
-             /var/cache/nginx/client_temp \
-             /var/run/nginx \
-             /var/log/nginx \
-             /tmp/nginx && \
-    chown -R appuser:appuser /var/cache/nginx \
-                          /var/log/nginx \
-                          /var/run/nginx \
-                          /tmp/nginx \
-                          /usr/share/nginx/html
+                              /var/log/nginx \
+                              /var/run/nginx \
+                              /tmp/nginx \
+                              /usr/share/nginx/html
 
 # 切换到非 root 用户
 USER appuser
