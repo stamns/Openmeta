@@ -450,6 +450,28 @@ fi
 "$PYTHON_BIN" -c "
 import json
 from pathlib import Path
+p = Path(r"$VERCEL_JSON")
+obj = json.loads(p.read_text(encoding="utf-8"))
+builds = obj.get("builds", [])
+srcs = {b.get("src") for b in builds if isinstance(b, dict)}
+need = {"backend/api/index.py", "frontend/package.json"}
+missing = sorted(need - srcs)
+if missing:
+    raise SystemExit("vercel.json 缺少 builds.src：" + ", ".join(missing))
+
+# 检查 routes 配置
+routes = obj.get("routes", [])
+if not routes:
+    raise SystemExit("vercel.json 缺少 routes 配置")
+
+# 检查环境变量配置
+if "env" not in obj:
+    raise SystemExit("vercel.json 缺少 env 配置")
+
+print("[OK] vercel.json 校验通过")
+print(f"[INFO] 构建配置: {len(builds)} 个构建项")
+print(f"[INFO] 路由配置: {len(routes)} 个路由规则")
+PY
 
 pkg = Path('$FRONTEND_PKG')
 obj = json.loads(pkg.read_text(encoding='utf-8'))

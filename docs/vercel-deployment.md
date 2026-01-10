@@ -4,6 +4,11 @@
 
 ## 📋 目录
 
+- **三层部署**: 同时支持本地开发、Docker 容器化和 Vercel 无服务器部署
+- **全球加速**: 自动获得 HTTPS、CDN、全球边缘节点加速
+- **冷启动优化**: 针对无服务器环境的性能优化
+- **环境隔离**: 开发、预览、生产环境独立配置
+- **GitHub 自动部署**: 推送代码自动触发 Vercel 构建
 - [快速开始](#快速开始)
 - [环境变量配置](#环境变量配置)
 - [部署流程](#部署流程)
@@ -15,6 +20,11 @@
 
 ### 前置要求
 
+- Vercel 账号 ([注册地址](https://vercel.com/signup))
+- GitHub 仓库 (用于自动部署)
+- PanSou 搜索服务地址
+- Node.js (用于前端构建)
+- Python 3.7+ (用于后端)
 1. GitHub 账号
 2. Vercel 账号（免费注册）
 3. OpenMeta 代码仓库已推送到 GitHub
@@ -23,6 +33,12 @@
 
 1. **导入项目到 Vercel**
 
+```bash
+# 复制环境变量模板
+cp .env.example .env
+
+# 编辑配置文件
+vim .env
    ```bash
    # 安装 Vercel CLI（可选）
    npm install -g vercel
@@ -136,6 +152,9 @@ Vercel 会自动识别项目结构，但请确保以下配置正确：
 - 检查 Vercel 环境变量是否已正确设置。
 - 检查 `backend/api/index.py` 的日志输出。
 
+**注意**: 所有环境变量都必须通过 Vercel Dashboard 配置，不能硬编码在代码中。
+
+## 🛠️ 部署步骤
 ### 2. 静态资源 404
 - 确保 `frontend/vite.config.js` 中的 `outDir` 设置为 `dist`。
 - 检查 `vercel.json` 中的 `routes` 配置是否与构建输出路径匹配。
@@ -158,6 +177,22 @@ Vercel 会自动识别项目结构，但请确保以下配置正确：
 3. **配置项目设置**
    - **Framework Preset**: Other
    - **Root Directory**: 保持默认（仓库根目录）
+   - **Build Command**: `npm install && npm run build`（在 frontend 目录）
+   - **Output Directory**: `frontend/dist`
+
+4. **添加环境变量**
+   - 在项目设置中添加 PanSou 相关环境变量
+   - 确保在 Production、Preview 和 Development 环境中都配置了相同的变量
+
+5. **部署**
+   - 点击 "Deploy" 开始部署
+   - Vercel 会自动检测 vercel.json 配置并构建前后端
+
+6. **验证部署**
+   - 部署完成后，访问生成的 URL（如 `https://openmeta-xxx.vercel.app`）
+   - 测试前端页面是否能正常加载
+   - 测试 API 端点 `/api/search` 是否返回正确结果
+   - 测试健康检查端点 `/health` 是否返回 200 OK
    - **Build Command**: `npm run build --prefix frontend`
    - **Output Directory**: `frontend/dist`
 
@@ -201,6 +236,32 @@ openmeta/
     └── requirements.txt     # Python 依赖
 ```
 
+1. **安装依赖**
+   ```bash
+   # 后端依赖
+   cd backend
+   pip install -r requirements.txt
+   
+   # 前端依赖
+   cd ../frontend
+   npm install
+   ```
+
+2. **配置环境变量**
+   ```bash
+   # 复制环境变量模板
+   cp ../.env.example .env
+   # 编辑 .env 填入实际值
+   ```
+
+3. **启动服务**
+   ```bash
+   # 后端服务
+   uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+   
+   # 前端服务
+   npm run dev
+   ```
 ## 🔧 路由配置
 
 | 路径 | 目标 | 说明 |
@@ -214,12 +275,91 @@ openmeta/
 
 部署成功后，您可以通过以下方式访问：
 
+   # 在项目根目录下测试
+   vercel dev
+   
+   # 验证部署
+   curl 'http://localhost:3000/api/search?q=test'
+   curl 'http://localhost:3000/health'
+   ```
+
+5. **验证 vercel.json 配置**
+   ```bash
+   # 使用部署脚本验证配置
+   ./scripts/deploy-vercel.sh
+   ```
 - **前端**: `https://your-app-name.vercel.app`
 - **API**: `https://your-app-name.vercel.app/api/search?q=test`
 - **健康检查**: `https://your-app-name.vercel.app/health`
 
 ## 🔒 自定义域名
 
+### Vercel.json 配置详解
+
+最新的 vercel.json 配置结构：
+
+```json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "backend/api/index.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "backend/api/index.py" },
+    { "src": "/health", "dest": "backend/api/index.py" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "env": {
+    "PANSOU_HOST": "@pansou_host",
+    "PANSOU_USER": "@pansou_user",
+    "PANSOU_PWD": "@pansou_pwd"
+  },
+  "functions": {
+    "backend/api/index.py": {
+      "maxDuration": 10,
+      "memory": 512
+    }
+  }
+}
+```
+
+**关键配置说明**：
+
+- **builds**: 定义了后端 Python 函数和前端静态构建
+- **routes**: 定义了 API 路由、健康检查和前端路由
+- **env**: 环境变量映射，使用 Vercel Secrets
+- **functions**: 后端函数的内存和超时配置
+
+### 性能优化
+
+1. **冷启动优化**
+   - 使用延迟导入减少启动时间
+   - HTTP 连接池缓存
+   - 环境变量预加载
+   - 后端使用 `backend.app.main` 延迟导入
+
+2. **内存和超时配置**
+   ```json
+   {
+     "functions": {
+       "backend/api/index.py": {
+         "maxDuration": 10,
+         "memory": 512
+       }
+     }
+   }
+   ```
 1. 进入 Vercel Dashboard → Project → Settings → Domains
 2. 添加您的自定义域名（如 `openmeta.example.com`）
 3. 按提示在域名服务商处配置 DNS：
@@ -232,6 +372,25 @@ openmeta/
 
 每次推送到 GitHub 后，Vercel 会自动触发部署：
 
+### 前端构建优化
+
+Vite 配置（frontend/vite.config.js）：
+
+```javascript
+build: {
+  outDir: 'dist',
+  emptyOutDir: true,
+  rollupOptions: {
+    input: {
+      main: fileURLToPath(new URL('index.html', import.meta.url))
+    }
+  }
+}
+```
+
+确保前端构建输出到 `dist` 目录，与 vercel.json 中的配置一致。
+
+### 自定义域名
 ```bash
 # 推送代码到 GitHub
 git add .
@@ -358,6 +517,45 @@ vercel --prod --force
 
 ### 4. 冷启动慢
 
+### 部署验证检查表
+
+部署完成后，请按照以下检查表验证部署是否成功：
+
+```bash
+# 1. 验证 vercel.json 语法
+python3 -c "import json; json.loads(open('vercel.json').read())"
+
+# 2. 验证前端构建
+cd frontend && npm run build
+
+# 3. 验证后端导入
+cd backend && python3 -c "from api.index import app; print('Backend import successful')"
+
+# 4. 本地测试
+vercel dev
+
+# 5. 测试 API 端点
+curl -v http://localhost:3000/api/search?q=test
+
+# 6. 测试健康检查
+curl -v http://localhost:3000/health
+
+# 7. 测试前端页面
+open http://localhost:3000
+```
+
+**验收标准**：
+- ✅ vercel.json 通过 JSON 验证（无语法错误）
+- ✅ 本地测试：vercel dev 能正常运行前端和后端
+- ✅ GitHub 推送后自动触发 Vercel 部署
+- ✅ 部署成功显示生成的 URL（如 openmeta-xxx.vercel.app）
+- ✅ 访问前端页面（/）能正常加载和显示
+- ✅ 搜索功能正常（/api/search 正常返回）
+- ✅ /health 端点返回 200 OK
+- ✅ 冷启动时间 <3 秒
+- ✅ 前后端路由都能正确访问，无 404 或跨域错误
+
+### 1. 日志查看
 **问题**：首次访问时响应时间过长
 
 **解决方案**：
@@ -397,6 +595,16 @@ vercel logs --follow [项目名称]
 
 ### 前端页面可以打开，但 API 调用失败
 
+#### 404 错误
+- 检查 vercel.json 中的 routes 配置
+- 确保所有路由都正确映射
+- 验证静态资源路径配置
+
+#### CORS 错误
+- 检查后端 CORS 配置
+- 确保前端请求使用相对路径（/api/search 而不是完整 URL）
+
+## 🎯 访问方式
 - 检查请求路径是否为 `/api/search`
 - 确认 vercel.json 中有 `/api/*` 路由规则
 - 查看 Functions 日志确认函数是否被触发

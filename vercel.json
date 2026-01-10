@@ -18,6 +18,13 @@
     { "src": "/health", "dest": "backend/api/index.py" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "backend/api/index.py" },
+    { "src": "/health", "dest": "backend/api/index.py" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
     {
       "src": "/api/(.*)",
       "dest": "backend/api/index.py"
@@ -61,4 +68,5 @@
   },
   "regions": ["hkg1", "sin1"]
   }
+}
 }

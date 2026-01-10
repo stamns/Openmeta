@@ -98,6 +98,7 @@ def get_app():
     使用 lazy loading 方式，只在首次请求时导入重型依赖
     """
     try:
+        from app.main import app
         from backend.app.main import app
         return app
     except Exception as e:
