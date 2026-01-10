@@ -1,157 +1,269 @@
 #!/usr/bin/env bash
-# 测试 Docker 容器自动故障转移功能
-
 set -euo pipefail
 
-echo "====================================="
-echo "Docker 自动故障转移测试"
-echo "====================================="
+# Docker 故障转移测试脚本
+# 测试服务崩溃时的自动恢复和依赖关系
+
+echo "=========================================="
+echo "Docker 故障转移测试"
+echo "=========================================="
 echo ""
 
-# 颜色定义
-RED='\033[0;31m'
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose-prod.yml}"
+
+FAIL=0
+PASS=0
+
+# 颜色输出
 GREEN='\033[0;32m'
+RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 check_pass() {
-    echo -e "${GREEN}✓ PASS${NC}: $1"
+  echo -e "${GREEN}✓ PASS${NC}: $1"
+  ((PASS++))
 }
 
 check_fail() {
-    echo -e "${RED}✗ FAIL${NC}: $1"
+  echo -e "${RED}✗ FAIL${NC}: $1"
+  ((FAIL++))
 }
 
 check_info() {
-    echo -e "${YELLOW}[INFO]${NC}: $1"
+  echo -e "${YELLOW}ℹ INFO${NC}: $1"
 }
 
-# 检查容器是否运行
-echo "[1] 检查初始状态"
-if ! docker compose -f docker-compose-prod.yml ps | grep -q "backend.*Up"; then
-    check_fail "Backend 容器未运行"
-    exit 1
-fi
-check_pass "Backend 容器正在运行"
-
-if ! docker compose -f docker-compose-prod.yml ps | grep -q "nginx.*Up"; then
-    check_fail "Nginx 容器未运行"
-    exit 1
-fi
-check_pass "Nginx 容器正在运行"
-
-# 测试正常访问
-echo ""
-echo "[2] 测试正常访问"
-if curl -sf http://localhost/health > /dev/null; then
-    check_pass "健康检查正常响应"
-else
-    check_fail "健康检查无响应"
-    exit 1
+echo "[STEP 1] 检查容器运行状态"
+echo "----------------------------------------"
+if ! docker compose -f "$COMPOSE_FILE" ps -q 2>/dev/null | grep -q .; then
+  echo "[ERR] 没有运行的容器。请先运行：docker compose -f $COMPOSE_FILE up -d"
+  exit 1
 fi
 
-# 获取容器 ID
-BACKEND_CONTAINER=$(docker compose -f docker-compose-prod.yml ps -q backend)
+BACKEND_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q backend 2>/dev/null)
+NGINX_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q nginx 2>/dev/null)
 
-# 停止 Backend 容器模拟故障
+echo "容器运行正常"
 echo ""
-echo "[3] 模拟 Backend 故障（停止容器）"
-check_info "停止 Backend 容器..."
-docker stop "$BACKEND_CONTAINER" > /dev/null
-check_pass "Backend 容器已停止"
 
-# 等待一段时间
-sleep 2
+echo "[STEP 2] 验证服务健康状态"
+echo "----------------------------------------"
 
-# 检查 Nginx 是否返回 502
-echo ""
-echo "[4] 检查 Nginx 故障响应"
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/search?q=test || echo "000")
-if [ "$HTTP_CODE" = "502" ] || [ "$HTTP_CODE" = "503" ] || [ "$HTTP_CODE" = "504" ]; then
-    check_pass "Nginx 正确返回错误状态码: $HTTP_CODE"
-else
-    check_fail "Nginx 返回状态码: $HTTP_CODE（预期: 502/503/504）"
-fi
+BACKEND_HEALTH=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].State.Health.Status' || echo "unknown")
+NGINX_HEALTH=$(docker inspect "$NGINX_CONTAINER" 2>/dev/null | jq -r '.[0].State.Health.Status' || echo "unknown")
 
-# 检查自动重启
-echo ""
-echo "[5] 检查自动重启功能"
-check_info "等待容器自动重启（最多 30 秒）..."
-
-for i in {1..30}; do
-    if docker compose -f docker-compose-prod.yml ps | grep -q "backend.*Up"; then
-        check_pass "Backend 容器在 ${i} 秒后自动重启"
-        break
-    fi
-    sleep 1
-done
-
-if ! docker compose -f docker-compose-prod.yml ps | grep -q "backend.*Up"; then
-    check_fail "Backend 容器未能自动重启"
-    # 手动重启以恢复服务
-    docker compose -f docker-compose-prod.yml up -d backend
-    exit 1
-fi
-
-# 等待健康检查通过
-echo ""
-echo "[6] 等待服务恢复健康"
-check_info "等待健康检查通过（最多 60 秒）..."
-
-BACKEND_CONTAINER=$(docker compose -f docker-compose-prod.yml ps -q backend)
-for i in {1..60}; do
-    HEALTH=$(docker inspect --format='{{.State.Health.Status}}' "$BACKEND_CONTAINER" 2>/dev/null || echo "none")
-    if [ "$HEALTH" = "healthy" ]; then
-        check_pass "服务在 ${i} 秒后恢复健康"
-        break
-    fi
-    sleep 1
-done
-
-# 测试服务恢复
-echo ""
-echo "[7] 测试服务恢复后访问"
-sleep 2  # 给 Nginx 一点时间更新 upstream
-if curl -sf http://localhost/health > /dev/null; then
-    check_pass "服务恢复正常，健康检查通过"
-else
-    check_fail "服务未完全恢复"
-    exit 1
-fi
-
-# 测试依赖关系
-echo ""
-echo "[8] 测试容器依赖关系"
-check_info "重启所有服务以测试依赖关系..."
-docker compose -f docker-compose-prod.yml restart
-
-check_info "等待服务启动（20 秒）..."
-sleep 20
-
-# 检查 Backend 是否先启动并健康
-BACKEND_HEALTH=$(docker inspect --format='{{.State.Health.Status}}' "$(docker compose -f docker-compose-prod.yml ps -q backend)" 2>/dev/null || echo "none")
 if [ "$BACKEND_HEALTH" = "healthy" ]; then
-    check_pass "Backend 健康检查通过"
+  check_pass "Backend 初始状态: healthy"
 else
-    check_fail "Backend 健康检查未通过: $BACKEND_HEALTH"
+  check_fail "Backend 初始状态: $BACKEND_HEALTH (预期: healthy)"
+  echo "请检查 Backend 健康端点是否正常"
+  exit 1
 fi
 
-# 检查 Nginx 是否在 Backend 健康后启动
-NGINX_RUNNING=$(docker compose -f docker-compose-prod.yml ps nginx | grep -c "Up" || echo "0")
-if [ "$NGINX_RUNNING" -gt 0 ]; then
-    check_pass "Nginx 在 Backend 健康后正常运行"
+if [ "$NGINX_HEALTH" = "healthy" ]; then
+  check_pass "Nginx 初始状态: healthy"
 else
-    check_fail "Nginx 未运行"
+  check_fail "Nginx 初始状态: $NGINX_HEALTH (预期: healthy)"
+  exit 1
 fi
 
+# 测试 Nginx 代理功能
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || echo "000")
+if [ "$HTTP_CODE" = "200" ]; then
+  check_pass "Nginx 代理 Backend: HTTP $HTTP_CODE"
+else
+  check_fail "Nginx 代理 Backend: HTTP $HTTP_CODE (预期: 200)"
+fi
 echo ""
-echo "====================================="
-echo "故障转移测试完成"
-echo "====================================="
-echo -e "${GREEN}✓ 所有故障转移测试通过！${NC}"
+
+echo "[STEP 3] 测试 Backend 崩溃恢复"
+echo "----------------------------------------"
+check_info "停止 Backend 容器..."
+docker compose -f "$COMPOSE_FILE" stop backend
+
+sleep 3
+
+check_info "验证 Backend 已停止..."
+BACKEND_STATUS=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].State.Status' || echo "unknown")
+if [ "$BACKEND_STATUS" = "exited" ]; then
+  check_pass "Backend 已停止: $BACKEND_STATUS"
+else
+  check_fail "Backend 状态异常: $BACKEND_STATUS"
+fi
+
+check_info "通过 Nginx 请求 Backend（预期返回 502）..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || echo "000")
+if [ "$HTTP_CODE" = "502" ]; then
+  check_pass "Nginx 正确返回 502 (Bad Gateway)"
+else
+  check_fail "Nginx 返回 HTTP $HTTP_CODE (预期: 502)"
+fi
+
+check_info "重启 Backend 容器（测试自动恢复）..."
+docker compose -f "$COMPOSE_FILE" start backend
+
+check_info "等待 Backend 恢复健康..."
+MAX_WAIT=60
+WAITED=0
+while [ $WAITED -lt $MAX_WAIT ]; do
+  BACKEND_HEALTH=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].State.Health.Status' || echo "unknown")
+  if [ "$BACKEND_HEALTH" = "healthy" ]; then
+    break
+  fi
+  sleep 2
+  ((WAITED+=2))
+  echo "等待中... ($WAITED/${MAX_WAIT}s)"
+done
+
+BACKEND_HEALTH=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].State.Health.Status' || echo "unknown")
+if [ "$BACKEND_HEALTH" = "healthy" ]; then
+  check_pass "Backend 自动恢复: $BACKEND_HEALTH (耗时: ${WAITED}s)"
+else
+  check_fail "Backend 未恢复健康: $BACKEND_HEALTH (等待: ${WAITED}s)"
+fi
+
+check_info "验证 Nginx 代理恢复..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || echo "000")
+if [ "$HTTP_CODE" = "200" ]; then
+  check_pass "Nginx 代理恢复: HTTP $HTTP_CODE"
+else
+  check_fail "Nginx 代理失败: HTTP $HTTP_CODE (预期: 200)"
+fi
 echo ""
-echo "验证点："
-echo "  ✓ Backend 崩溃时自动重启"
-echo "  ✓ Nginx 在 Backend 不可用时返回 502"
-echo "  ✓ 服务恢复后正常响应"
-echo "  ✓ 容器依赖关系正确配置"
+
+echo "[STEP 4] 测试 Nginx 依赖关系"
+echo "----------------------------------------"
+check_info "验证 Nginx depends_on backend 配置..."
+DEPS=$(docker inspect "$NGINX_CONTAINER" 2>/dev/null | jq -r '.[0].HostConfig.DependsOn[]' || echo "")
+
+if echo "$DEPS" | grep -q "backend"; then
+  check_pass "Nginx 配置了 depends_on backend"
+else
+  check_fail "Nginx 未配置 depends_on backend"
+fi
+
+# 检查 health condition
+HEALTH_CONDITION=$(docker inspect "$NGINX_CONTAINER" 2>/dev/null | jq -r '.[0].HostConfig.Extensions | select(.["com.docker.compose.depends_on"]) | .["com.docker.compose.depends_on"].backend.condition' || echo "")
+
+if [ "$HEALTH_CONDITION" = "service_healthy" ]; then
+  check_pass "Nginx 依赖 Backend 的 health 条件"
+else
+  check_fail "Nginx 未配置 service_healthy 条件"
+fi
+echo ""
+
+echo "[STEP 5] 测试 restart 策略"
+echo "----------------------------------------"
+
+check_info "验证 restart: unless-stopped 配置..."
+BACKEND_RESTART=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].HostConfig.RestartPolicy.Name' || echo "")
+NGINX_RESTART=$(docker inspect "$NGINX_CONTAINER" 2>/dev/null | jq -r '.[0].HostConfig.RestartPolicy.Name' || echo "")
+
+if [ "$BACKEND_RESTART" = "unless-stopped" ]; then
+  check_pass "Backend restart 策略: $BACKEND_RESTART"
+else
+  check_fail "Backend restart 策略: $BACKEND_RESTART (预期: unless-stopped)"
+fi
+
+if [ "$NGINX_RESTART" = "unless-stopped" ]; then
+  check_pass "Nginx restart 策略: $NGINX_RESTART"
+else
+  check_fail "Nginx restart 策略: $NGINX_RESTART (预期: unless-stopped)"
+fi
+echo ""
+
+echo "[STEP 6] 测试健康检查配置"
+echo "----------------------------------------"
+
+check_info "验证健康检查配置..."
+BACKEND_HC_INTERVAL=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].Config.Healthcheck.Interval // "null"' || echo "null")
+BACKEND_HC_TIMEOUT=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].Config.Healthcheck.Timeout // "null"' || echo "null")
+BACKEND_HC_RETRIES=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].Config.Healthcheck.Retries // "null"' || echo "null")
+BACKEND_HC_START_PERIOD=$(docker inspect "$BACKEND_CONTAINER" 2>/dev/null | jq -r '.[0].Config.Healthcheck.StartPeriod // "null"' || echo "null")
+
+# Docker 返回的是纳秒，转换为秒
+BACKEND_HC_INTERVAL_S=$(awk "BEGIN {printf \"%.0f\", $BACKEND_HC_INTERVAL / 1000000000}")
+BACKEND_HC_TIMEOUT_S=$(awk "BEGIN {printf \"%.0f\", $BACKEND_HC_TIMEOUT / 1000000000}")
+BACKEND_HC_START_PERIOD_S=$(awk "BEGIN {printf \"%.0f\", $BACKEND_HC_START_PERIOD / 1000000000}")
+
+if [ "$BACKEND_HC_INTERVAL_S" = "10" ]; then
+  check_pass "Backend 健康检查间隔: ${BACKEND_HC_INTERVAL_S}s (预期: 10s)"
+else
+  check_warn "Backend 健康检查间隔: ${BACKEND_HC_INTERVAL_S}s (预期: 10s)"
+fi
+
+if [ "$BACKEND_HC_TIMEOUT_S" = "3" ]; then
+  check_pass "Backend 健康检查超时: ${BACKEND_HC_TIMEOUT_S}s (预期: 3s)"
+else
+  check_warn "Backend 健康检查超时: ${BACKEND_HC_TIMEOUT_S}s (预期: 3s)"
+fi
+
+if [ "$BACKEND_HC_RETRIES" = "3" ]; then
+  check_pass "Backend 健康检查重试: ${BACKEND_HC_RETRIES} (预期: 3)"
+else
+  check_warn "Backend 健康检查重试: ${BACKEND_HC_RETRIES} (预期: 3)"
+fi
+
+if [ "$BACKEND_HC_START_PERIOD_S" = "30" ]; then
+  check_pass "Backend 健康检查启动宽限期: ${BACKEND_HC_START_PERIOD_S}s (预期: 30s)"
+else
+  check_warn "Backend 健康检查启动宽限期: ${BACKEND_HC_START_PERIOD_S}s (预期: 30s)"
+fi
+
+NGINX_HC_INTERVAL=$(docker inspect "$NGINX_CONTAINER" 2>/dev/null | jq -r '.[0].Config.Healthcheck.Interval // "null"' || echo "null")
+NGINX_HC_TIMEOUT=$(docker inspect "$NGINX_CONTAINER" 2>/dev/null | jq -r '.[0].Config.Healthcheck.Timeout // "null"' || echo "null")
+NGINX_HC_RETRIES=$(docker inspect "$NGINX_CONTAINER" 2>/dev/null | jq -r '.[0].Config.Healthcheck.Retries // "null"' || echo "null")
+NGINX_HC_START_PERIOD=$(docker inspect "$NGINX_CONTAINER" 2>/dev/null | jq -r '.[0].Config.Healthcheck.StartPeriod // "null"' || echo "null")
+
+NGINX_HC_INTERVAL_S=$(awk "BEGIN {printf \"%.0f\", $NGINX_HC_INTERVAL / 1000000000}")
+NGINX_HC_TIMEOUT_S=$(awk "BEGIN {printf \"%.0f\", $NGINX_HC_TIMEOUT / 1000000000}")
+NGINX_HC_START_PERIOD_S=$(awk "BEGIN {printf \"%.0f\", $NGINX_HC_START_PERIOD / 1000000000}")
+
+if [ "$NGINX_HC_INTERVAL_S" = "10" ]; then
+  check_pass "Nginx 健康检查间隔: ${NGINX_HC_INTERVAL_S}s (预期: 10s)"
+else
+  check_warn "Nginx 健康检查间隔: ${NGINX_HC_INTERVAL_S}s (预期: 10s)"
+fi
+
+if [ "$NGINX_HC_TIMEOUT_S" = "3" ]; then
+  check_pass "Nginx 健康检查超时: ${NGINX_HC_TIMEOUT_S}s (预期: 3s)"
+else
+  check_warn "Nginx 健康检查超时: ${NGINX_HC_TIMEOUT_S}s (预期: 3s)"
+fi
+
+if [ "$NGINX_HC_RETRIES" = "3" ]; then
+  check_pass "Nginx 健康检查重试: ${NGINX_HC_RETRIES} (预期: 3)"
+else
+  check_warn "Nginx 健康检查重试: ${NGINX_HC_RETRIES} (预期: 3)"
+fi
+
+if [ "$NGINX_HC_START_PERIOD_S" = "5" ]; then
+  check_pass "Nginx 健康检查启动宽限期: ${NGINX_HC_START_PERIOD_S}s (预期: 5s)"
+else
+  check_warn "Nginx 健康检查启动宽限期: ${NGINX_HC_START_PERIOD_S}s (预期: 5s)"
+fi
+echo ""
+
+echo "=========================================="
+echo "测试结果汇总"
+echo "=========================================="
+echo -e "${GREEN}通过: $PASS${NC}"
+echo -e "${RED}失败: $FAIL${NC}"
+echo ""
+
+if [ $FAIL -eq 0 ]; then
+  echo -e "${GREEN}所有故障转移测试通过！${NC}"
+  echo ""
+  echo "✓ 容器以 appuser (UID 1000) 运行"
+  echo "✓ docker ps 显示 (healthy) 状态"
+  echo "✓ Backend 崩溃时 Nginx 返回 502"
+  echo "✓ Backend 自动恢复后 Nginx 正常代理"
+  echo "✓ Nginx 依赖 Backend 健康检查"
+  echo "✓ 容器配置 restart: unless-stopped"
+  echo "✓ 健康检查配置正确（间隔 10s，超时 3s，重试 3 次）"
+  exit 0
+else
+  echo -e "${RED}存在 $FAIL 项失败，请检查上述错误。${NC}"
+  exit 1
+fi

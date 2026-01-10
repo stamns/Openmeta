@@ -23,12 +23,6 @@ services:
       retries: 3
       start_period: 30s
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
     tmpfs:
       - /tmp
     deploy:
@@ -66,15 +60,6 @@ services:
       retries: 3
       start_period: 5s
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-      - CHOWN
-      - SETGID
-      - SETUID
     tmpfs:
       - /tmp
       - /var/run
@@ -93,8 +78,8 @@ services:
     cap_add:
       - NET_BIND_SERVICE
       - CHOWN
-      - SETUID
       - SETGID
+      - SETUID
 
   redis:
     image: redis:7-alpine
@@ -103,21 +88,12 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
       start_period: 5s
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-      - SETGID
-      - SETUID
     deploy:
       resources:
         limits:
@@ -128,6 +104,12 @@ services:
           cpus: "0.10"
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
     profiles: ["redis"]
 
   redis-backup:

@@ -26,28 +26,22 @@ COPY --from=frontend-build /work/frontend/dist /usr/share/nginx/html
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /var/cache/nginx/api_cache \
-             /var/run/nginx \
              /var/log/nginx \
-             /tmp/nginx && \
-    chown -R nginx:nginx /var/cache/nginx \
-                         /var/log/nginx \
-                         /var/run/nginx \
-                         /tmp/nginx \
-                         /usr/share/nginx/html
-# 创建缓存和日志目录，设置权限
-RUN mkdir -p /var/cache/nginx/api_cache /var/log/nginx /var/run /var/cache/nginx/client_temp && \
-    chown -R appuser:appuser /var/cache/nginx /var/log/nginx /usr/share/nginx/html && \
-    chown -R appuser:appuser /var/run && \
-    chmod -R 755 /var/cache/nginx /var/log/nginx
+             /var/run/nginx \
+             /tmp/nginx \
+             /var/cache/nginx/client_temp && \
+    chown -R appuser:appuser /var/cache/nginx \
+                           /var/log/nginx \
+                           /var/run/nginx \
+                           /tmp/nginx \
+                           /usr/share/nginx/html && \
+    chmod -R 755 /var/cache/nginx /var/log/nginx /var/run
 
 # 切换到非 root 用户
 USER appuser
 
 # 暴露端口
 EXPOSE 80
-
-# 切换到非 root 用户
-USER nginx
 
 # 健康检查
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
