@@ -39,7 +39,19 @@ need = {"backend/api/index.py", "frontend/package.json"}
 missing = sorted(need - srcs)
 if missing:
     raise SystemExit("vercel.json 缺少 builds.src：" + ", ".join(missing))
+
+# 检查 routes 配置
+routes = obj.get("routes", [])
+if not routes:
+    raise SystemExit("vercel.json 缺少 routes 配置")
+
+# 检查环境变量配置
+if "env" not in obj:
+    raise SystemExit("vercel.json 缺少 env 配置")
+
 print("[OK] vercel.json 校验通过")
+print(f"[INFO] 构建配置: {len(builds)} 个构建项")
+print(f"[INFO] 路由配置: {len(routes)} 个路由规则")
 PY
 
 get_env() {
