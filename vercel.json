@@ -18,6 +18,42 @@
     { "src": "/health", "dest": "backend/api/index.py" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "backend/api/index.py" },
+    { "src": "/health", "dest": "backend/api/index.py" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/api/index.py"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/backend/api/index.py"
+    },
+    {
+      "src": "/health",
+      "dest": "/backend/api/index.py"
+      "src": "/health",
+      "src": "/health",
+      "dest": "backend/api/index.py"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/api/index.py"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/index.html"
+    }
+  ],
+      "dest": "/index.html"
+    }
   ],
   "env": {
     "PANSOU_HOST": "@pansou_host",
@@ -29,5 +65,8 @@
       "maxDuration": 10,
       "memory": 512
     }
+  },
+  "regions": ["hkg1", "sin1"]
   }
+}
 }
