@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# OpenMeta Vercel 部署脚本
+# 支持本地验证和自动部署
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
@@ -8,8 +11,23 @@ DEPLOY=0
 for arg in "$@"; do
   case "$arg" in
     --deploy) DEPLOY=1 ;;
+    --verify-only) DEPLOY=0 ;;
+    -h|--help)
+      echo "Usage: $0 [--deploy] [--verify-only]"
+      echo "  --deploy       部署到 Vercel（需要 Vercel CLI）"
+      echo "  --verify-only  仅验证配置（默认）"
+      exit 0
+      ;;
   esac
 done
+
+echo "========================================"
+echo "  OpenMeta Vercel 部署脚本"
+echo "========================================"
+echo ""
+
+# 1. 验证 Python 和 JSON
+echo "[1/5] 验证环境..."
 
 PYTHON_BIN=""
 if command -v python3 >/dev/null 2>&1; then
@@ -17,9 +35,19 @@ if command -v python3 >/dev/null 2>&1; then
 elif command -v python >/dev/null 2>&1; then
   PYTHON_BIN="python"
 else
-  echo "[ERR] 未安装 Python（用于校验 vercel.json）" >&2
+  echo "[ERR] 未安装 Python" >&2
   exit 1
 fi
+
+NPM_BIN=""
+if command -v npm >/dev/null 2>&1; then
+  NPM_BIN="npm"
+else
+  echo "[WARN] 未安装 npm，Vercel CLI 功能不可用"
+fi
+
+# 2. 验证 vercel.json
+echo "[2/5] 验证 vercel.json..."
 
 VERCEL_JSON="$ROOT_DIR/vercel.json"
 if [ ! -f "$VERCEL_JSON" ]; then
@@ -27,35 +55,126 @@ if [ ! -f "$VERCEL_JSON" ]; then
   exit 1
 fi
 
-# 基础校验：JSON 可解析 + 包含关键构建项
-"$PYTHON_BIN" - <<PY
+# JSON 验证
+"$PYTHON_BIN" -c "
 import json
 from pathlib import Path
-p = Path(r"$VERCEL_JSON")
-obj = json.loads(p.read_text(encoding="utf-8"))
-builds = obj.get("builds", [])
-srcs = {b.get("src") for b in builds if isinstance(b, dict)}
-need = {"backend/api/index.py", "frontend/package.json"}
-missing = sorted(need - srcs)
-if missing:
-    raise SystemExit("vercel.json 缺少 builds.src：" + ", ".join(missing))
-print("[OK] vercel.json 校验通过")
-PY
+
+p = Path('$VERCEL_JSON')
+try:
+    obj = json.loads(p.read_text(encoding='utf-8'))
+except json.JSONDecodeError as e:
+    print(f'[ERR] vercel.json 格式错误: {e}')
+    exit(1)
+
+if obj.get('version') != 2:
+    print('[ERR] vercel.json version 必须为 2')
+    exit(1)
+
+builds = obj.get('builds', [])
+if not any(b.get('src') == 'backend/api/index.py' for b in builds):
+    print('[ERR] vercel.json 缺少 backend/api/index.py build')
+    exit(1)
+if not any(b.get('src') == 'frontend/package.json' for b in builds):
+    print('[ERR] vercel.json 缺少 frontend/package.json build')
+    exit(1)
+
+routes = obj.get('routes', [])
+has_api_route = any(r.get('src') == '/api/(.*)' for r in routes)
+has_filesystem = any(r.get('handle') == 'filesystem' for r in routes)
+has_fallback = any(r.get('dest') == '/index.html' for r in routes)
+
+if not has_api_route:
+    print('[ERR] vercel.json 缺少 /api/* 路由')
+    exit(1)
+if not has_filesystem:
+    print('[ERR] vercel.json 缺少 filesystem handler')
+    exit(1)
+if not has_fallback:
+    print('[ERR] vercel.json 缺少 index.html fallback')
+    exit(1)
+
+print('[OK] vercel.json 格式验证通过')
+"
+
+# 3. 验证前端配置
+echo "[3/5] 验证前端配置..."
+
+FRONTEND_PKG="$ROOT_DIR/frontend/package.json"
+if [ ! -f "$FRONTEND_PKG" ]; then
+    echo "[ERR] 缺少 frontend/package.json" >&2
+    exit 1
+fi
+
+"$PYTHON_BIN" -c "
+import json
+from pathlib import Path
+
+pkg = Path('$FRONTEND_PKG')
+obj = json.loads(pkg.read_text(encoding='utf-8'))
+
+scripts = obj.get('scripts', {})
+if 'build' not in scripts:
+    print('[ERR] frontend/package.json 缺少 build 脚本')
+    exit(1)
+
+dev_deps = obj.get('devDependencies', {})
+if 'vite' not in dev_deps:
+    print('[ERR] frontend/package.json 缺少 vite 依赖')
+    exit(1)
+
+print('[OK] 前端配置验证通过')
+"
+
+# 4. 验证 Python API
+echo "[4/5] 验证后端 API..."
+
+API_INDEX="$ROOT_DIR/backend/api/index.py"
+if [ ! -f "$API_INDEX" ]; then
+    echo "[ERR] 缺少 backend/api/index.py" >&2
+    exit 1
+fi
+
+# 验证 Python 语法
+if ! "$PYTHON_BIN" -m py_compile "$API_INDEX" 2>&1; then
+    echo "[ERR] backend/api/index.py 语法错误" >&2
+    exit 1
+fi
+
+# 验证 mangum 导入
+"$PYTHON_BIN" -c "
+from pathlib import Path
+
+api_path = Path('$API_INDEX')
+code = api_path.read_text()
+
+if 'mangum' not in code:
+    print('[ERR] backend/api/index.py 缺少 mangum 导入')
+    exit(1)
+if 'Mangum' not in code:
+    print('[ERR] backend/api/index.py 未使用 Mangum')
+    exit(1)
+
+print('[OK] 后端 API 验证通过')
+"
+
+# 5. 环境变量检查
+echo "[5/5] 检查环境变量..."
 
 get_env() {
-  local key="$1"
-  if [ -n "${!key:-}" ]; then
-    echo "${!key}"
+  local key="\$1"
+  if [ -n "\${!key:-}" ]; then
+    echo "\${!key}"
     return 0
   fi
   if [ -f "$ROOT_DIR/.env" ]; then
-    awk -F= -v k="$key" '$0 ~ "^"k"=" {sub("^"k"=","",$0); print $0; exit 0}' "$ROOT_DIR/.env" || true
+    awk -F= -v k="\$key" '\$0 ~ "^"k"=" {sub("^"k"=","",\$0); print \$0; exit 0}' "$ROOT_DIR/.env" || true
     return 0
   fi
   echo ""
 }
 
-required=(PANSOU_HOST PANSOU_USER PANSOU_PWD)
+required=(PANSOU_HOST)
 missing=()
 for k in "${required[@]}"; do
   v="$(get_env "$k")"
@@ -65,34 +184,38 @@ for k in "${required[@]}"; do
 done
 
 if [ "${#missing[@]}" -gt 0 ]; then
-  echo "[WARN] 未检测到以下环境变量：" >&2
-  printf '  - %s\n' "${missing[@]}" >&2
-  echo "      不配置也可以部署，但 /api/search 将返回空结果（建议生产环境补齐 PanSou 配置）。" >&2
+  echo "[WARN] 以下环境变量未配置："
+  printf '  - %s\n' "${missing[@]}"
+  echo "      部署后请在 Vercel Dashboard 中配置"
 fi
 
 echo ""
-echo "[INFO] Vercel 部署（推荐：GitHub 自动部署）"
-echo "  1) 将代码推送到 GitHub"
-echo "  2) 打开 https://vercel.com/new 导入仓库"
-echo "  3) 保持 Root Directory 为仓库根目录（本仓库提供根目录 vercel.json）"
-echo "  4) Project -> Settings -> Environment Variables：配置 PANSOU_HOST / PANSOU_USER / PANSOU_PWD（以及可选 LOG_LEVEL 等）"
-echo "  5) Deploy，等待构建完成"
-echo "  6) 域名绑定：Project -> Settings -> Domains"
-
+echo "========================================"
+echo "  验证完成！"
+echo "========================================"
 echo ""
-echo "[INFO] 成本说明"
-echo "  - Free：适合个人/小流量站点（可能有冷启动与配额限制）"
-echo "  - Pro：适合更高并发/更高配额/团队协作"
 
-echo ""
-if [ "$DEPLOY" -eq 1 ] || [ "${AUTO_DEPLOY:-0}" -eq 1 ]; then
-  if ! command -v vercel >/dev/null 2>&1; then
-    echo "[ERR] 未安装 Vercel CLI：npm i -g vercel" >&2
-    exit 1
-  fi
-  echo "[INFO] 尝试通过 Vercel CLI 进行生产部署（需要提前 vercel login）"
-  vercel deploy --prod --yes
+# 部署选项
+if [ "$DEPLOY" -eq 1 ]; then
+    if [ -z "$NPM_BIN" ]; then
+        echo "[ERR] 无法部署：未安装 npm" >&2
+        exit 1
+    fi
+
+    if ! command -v vercel >/dev/null 2>&1; then
+        echo "[INFO] 安装 Vercel CLI..."
+        npm install -g vercel
+    fi
+
+    echo "[INFO] 开始部署到 Vercel..."
+    vercel deploy --prod --yes
 else
-  echo "[INFO] 可选：使用 Vercel CLI 自动部署（需要已登录）"
-  echo "      执行：./scripts/deploy-vercel.sh --deploy"
+    echo "下一步："
+    echo "  1. 推送代码到 GitHub"
+    echo "  2. 在 Vercel Dashboard 导入仓库"
+    echo "  3. 配置环境变量（PANSOU_HOST 等）"
+    echo "  4. 部署完成！"
+    echo ""
+    echo "快速部署命令："
+    echo "  $0 --deploy"
 fi
