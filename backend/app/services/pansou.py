@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import asyncio
 import time
+import logging
 from functools import lru_cache
 from typing import Any
 
 from ..settings import settings
+
+logger = logging.getLogger("openmeta.pansou")
 
 
 # 全局 token 管理
@@ -26,6 +29,8 @@ class TokenManager:
     def __init__(self):
         self.token: str | None = None
         self.token_exp: float = 0.0
+        self.last_login_time: float = 0.0
+        self.login_count: int = 0
         self._login_lock = asyncio.Lock()
 
     def is_token_valid(self) -> bool:
@@ -58,7 +63,7 @@ class TokenManager:
         base_url = settings.pansou_host.rstrip("/")
         login_url = f"{base_url}/api/auth/login"
 
-        print(f"🔌 正在连接 PanSou 节点: {settings.pansou_host} ...")
+        logger.info(f"🔌 正在连接 PanSou 节点: {settings.pansou_host} ...")
 
         client = _get_async_client()
         try:
@@ -80,6 +85,8 @@ class TokenManager:
 
                 # 计算过期时间
                 self.token_exp = time.time() + expires_in
+                self.last_login_time = time.time()
+                self.login_count += 1
 
                 print(f"✅ PanSou 认证成功，Token 有效期: {expires_in} 秒")
                 
@@ -102,6 +109,11 @@ class TokenManager:
                 except ImportError:
                     pass
                 
+                logger.info(f"✅ PanSou 认证成功，Token 有效期: {expires_in} 秒")
+                return True
+            else:
+                self.token = None  # 清空失败的 token
+                logger.error(f"❌ PanSou 认证失败 ({resp.status_code}): {resp.text}")
                 return False
 
         except Exception as exc:
@@ -115,6 +127,7 @@ class TokenManager:
             except ImportError:
                 pass
             
+            logger.error(f"❌ PanSou 连接错误: {exc}", exc_info=True)
             return False
 
     def clear_token(self):
@@ -122,9 +135,27 @@ class TokenManager:
         self.token = None
         self.token_exp = 0.0
 
+    def get_status(self) -> dict[str, Any]:
+        """获取 token 状态"""
+        return {
+            "has_token": self.token is not None,
+            "token_valid": self.is_token_valid(),
+            "expires_in": max(0, int(self.token_exp - time.time())) if self.token_exp > 0 else 0,
+            "last_login_time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.last_login_time)) if self.last_login_time > 0 else "Never",
+            "login_count": self.login_count
+        }
+
 
 # 全局单例
 _token_manager = TokenManager()
+
+# 导出供其他模块使用
+__all__ = ["pansou_search", "_token_manager"]
+
+
+def get_token_manager() -> TokenManager:
+    """获取全局 Token 管理器实例"""
+    return _token_manager
 
 
 async def pansou_search(query: str) -> dict[str, Any]:
@@ -169,7 +200,7 @@ async def pansou_search(query: str) -> dict[str, Any]:
 
         # 如果 token 过期（401），清空 token 让下次请求重新登录
         if resp.status_code == 401:
-            print("⚠️ Token 已过期，清空缓存")
+            logger.warning("⚠️ Token 已过期，清空缓存")
             _token_manager.clear_token()
             return {
                 "provider": "pansou",
@@ -209,7 +240,7 @@ async def pansou_search(query: str) -> dict[str, Any]:
                     "time": "",
                 })
 
-        print(f"✅ 搜索完成: '{query}' 共 {len(results)} 条结果")
+        logger.info(f"✅ 搜索完成: '{query}' 共 {len(results)} 条结果")
 
         # 记录搜索成功指标
         try:
@@ -235,6 +266,7 @@ async def pansou_search(query: str) -> dict[str, Any]:
         except ImportError:
             pass
         
+        logger.warning(f"⏱️ 搜索超时（{settings.search_timeout} 秒）")
         return {
             "provider": "pansou",
             "enabled": True,
@@ -252,6 +284,7 @@ async def pansou_search(query: str) -> dict[str, Any]:
         except ImportError:
             pass
         
+        logger.error(f"⚠️ 搜索过程异常: {exc}", exc_info=True)
         return {
             "provider": "pansou",
             "enabled": True,
