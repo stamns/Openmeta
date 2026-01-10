@@ -10,49 +10,23 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
-    base: '/',
-    build: {
-      outDir: 'dist',
-      emptyOutDir: true,
-      rollupOptions: {
-        input: {
-          main: fileURLToPath(new URL('index.html', import.meta.url))
-        }
-      }
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src')
+        '@': resolve(__dirname, './src')
       }
     },
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
       sourcemap: mode === 'development',
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'vendor': ['vue']
-          }
-        }
-      }
-    base: '/',
-    build: {
-      outDir: 'dist',
-      assetsDir: 'assets',
-      sourcemap: false,
       minify: 'terser',
       terserOptions: {
         compress: {
-          drop_console: true,
-          drop_debugger: true
+          drop_console: mode === 'production',
+          drop_debugger: mode === 'production'
         }
-      }
-      emptyOutDir: true,
-    base: '/',  // 部署到根路径
-    build: {
-      outDir: 'dist',
-      assetsDir: 'assets',
-      sourcemap: mode === 'development'
+      },
+      emptyOutDir: true
     },
     server: {
       host: '0.0.0.0',
@@ -60,22 +34,21 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           target: backend,
-          changeOrigin: true,
+          changeOrigin: true
         },
         '/health': {
           target: backend,
-          changeOrigin: true,
+          changeOrigin: true
         }
-      }
-    },
-    resolve: {
-      alias: {
-        '@': resolve(__dirname, './src')
       }
     },
     preview: {
       host: '0.0.0.0',
       port: 4173
+    },
+    test: {
+      environment: 'jsdom',
+      globals: true
     }
   }
 })

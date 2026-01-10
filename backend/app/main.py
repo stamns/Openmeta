@@ -38,6 +38,7 @@ from .settings import settings
 from .logging_config import setup_logging
 from .metrics import metrics
 from .middleware.rate_limit import RateLimitMiddleware
+from .routers.logs import router as logs_router
 
 from .logging_config import logger, log_request_start, log_request_end, log_error
 from .metrics import get_metrics_collector, record_request_metrics
@@ -209,6 +210,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    app.include_router(logs_router, prefix="/api", tags=["日志"])
 
     # 健康检查端点
     @app.get("/health", tags=["健康检查"])
@@ -993,6 +996,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(logs_router, prefix="/api", tags=["日志"])
+
     # 健康检查端点
     @app.get("/health", tags=["健康检查"])
     async def health_check(detail: bool = Query(False, description="是否显示详细信息")) -> dict[str, Any]:
@@ -1071,6 +1076,7 @@ def create_app() -> FastAPI:
     # 主要搜索端点
     @app.get("/api/search", tags=["搜索"])
     async def search(
+        request: Request,
         q: str = Query(..., min_length=1, max_length=100, description="搜索关键词"),
         page: int = Query(1, ge=1, le=100, description="页码")
     ) -> dict[str, Any]:
@@ -1079,6 +1085,7 @@ def create_app() -> FastAPI:
         - **q**: 搜索关键词（必需）
         - **page**: 页码（默认：1）
         """
+        request_id = getattr(request.state, "request_id", "unknown")
         logger.info(f"搜索请求: q='{q}', page={page}")
 
         try:
