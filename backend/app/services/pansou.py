@@ -6,6 +6,7 @@ PanSou 搜索服务 - 带 Token 认证和并发控制
 2. 并发安全（使用 asyncio.Lock 和 Double-check locking）
 3. 搜索超时配置（使用环境变量）
 4. 友好的错误处理
+5. 集成监控指标收集
 """
 
 from __future__ import annotations
@@ -87,6 +88,27 @@ class TokenManager:
                 self.last_login_time = time.time()
                 self.login_count += 1
 
+                print(f"✅ PanSou 认证成功，Token 有效期: {expires_in} 秒")
+                
+                # 记录 Token 刷新成功指标
+                try:
+                    from ..metrics import record_token_metrics
+                    record_token_metrics(True)
+                except ImportError:
+                    pass
+                
+                return True
+            else:
+                self.token = None  # 清空失败的 token
+                print(f"❌ PanSou 认证失败 ({resp.status_code}): {resp.text}")
+                
+                # 记录 Token 刷新失败指标
+                try:
+                    from ..metrics import record_token_metrics
+                    record_token_metrics(False)
+                except ImportError:
+                    pass
+                
                 logger.info(f"✅ PanSou 认证成功，Token 有效期: {expires_in} 秒")
                 return True
             else:
@@ -96,6 +118,15 @@ class TokenManager:
 
         except Exception as exc:
             self.token = None
+            print(f"❌ PanSou 连接错误: {exc}")
+            
+            # 记录 Token 刷新失败指标
+            try:
+                from ..metrics import record_token_metrics
+                record_token_metrics(False)
+            except ImportError:
+                pass
+            
             logger.error(f"❌ PanSou 连接错误: {exc}", exc_info=True)
             return False
 
@@ -211,6 +242,13 @@ async def pansou_search(query: str) -> dict[str, Any]:
 
         logger.info(f"✅ 搜索完成: '{query}' 共 {len(results)} 条结果")
 
+        # 记录搜索成功指标
+        try:
+            from ..metrics import record_pansou_metrics
+            record_pansou_metrics(True)
+        except ImportError:
+            pass
+
         return {
             "provider": "pansou",
             "enabled": True,
@@ -219,6 +257,15 @@ async def pansou_search(query: str) -> dict[str, Any]:
         }
 
     except asyncio.TimeoutError:
+        print(f"⏱️ 搜索超时（{settings.search_timeout} 秒）")
+        
+        # 记录搜索失败指标
+        try:
+            from ..metrics import record_pansou_metrics
+            record_pansou_metrics(False, "timeout")
+        except ImportError:
+            pass
+        
         logger.warning(f"⏱️ 搜索超时（{settings.search_timeout} 秒）")
         return {
             "provider": "pansou",
@@ -228,6 +275,15 @@ async def pansou_search(query: str) -> dict[str, Any]:
             "error": f"搜索超时（{settings.search_timeout} 秒），请稍后重试",
         }
     except Exception as exc:
+        print(f"⚠️ 搜索过程异常: {exc}")
+        
+        # 记录搜索失败指标
+        try:
+            from ..metrics import record_pansou_metrics
+            record_pansou_metrics(False, str(exc))
+        except ImportError:
+            pass
+        
         logger.error(f"⚠️ 搜索过程异常: {exc}", exc_info=True)
         return {
             "provider": "pansou",
