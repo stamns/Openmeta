@@ -54,7 +54,7 @@ function formatTime(timestamp: string) {
 .error-container {
   margin-top: 20px;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   gap: 16px;
   border: 1px solid transparent;
@@ -62,26 +62,32 @@ function formatTime(timestamp: string) {
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .critical {
-  background-color: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
+  background-color: var(--critical-bg);
+  border-color: var(--critical-border);
+  color: var(--critical-text);
 }
 
 .error {
-  background-color: #fffafb;
-  border-color: #fee2e2;
-  color: #b91c1c;
+  background-color: var(--error-bg);
+  border-color: var(--error-border);
+  color: var(--error-text);
 }
 
 .warning {
-  background-color: #fffbeb;
-  border-color: #fef3c7;
-  color: #92400e;
+  background-color: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
 }
 
 .error-icon {
@@ -95,20 +101,21 @@ function formatTime(timestamp: string) {
 .error-title {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .error-meta {
   margin: 4px 0 0;
   font-size: 12px;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .error-details {
   margin-top: 12px;
   padding: 10px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   overflow: auto;
   max-height: 200px;
@@ -124,40 +131,41 @@ pre {
   margin-top: 16px;
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 button {
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.2s;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .retry-btn {
-  background-color: #111827;
-  color: white;
+  background-color: var(--accent-color);
+  color: var(--on-accent);
 }
 
 .retry-btn:hover {
-  background-color: #374151;
+  background-color: var(--accent-hover);
 }
 
 .clear-btn {
-  background-color: white;
-  border-color: #e5e7eb;
-  color: #374151;
+  background-color: transparent;
+  border-color: currentColor;
+  color: inherit;
 }
 
 .clear-btn:hover {
-  background-color: #f9fafb;
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .details-btn {
   background-color: transparent;
   color: inherit;
   text-decoration: underline;
-  padding: 6px 0;
+  border-color: transparent;
 }
 </style>
