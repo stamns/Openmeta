@@ -13,5 +13,8 @@ RUN npm run build
 
 FROM nginx:1.25-alpine
 
+COPY deploy/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx_conf/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=frontend-build /work/frontend/dist /usr/share/nginx/html
+
+RUN mkdir -p /var/cache/nginx/api_cache && chown -R nginx:nginx /var/cache/nginx
