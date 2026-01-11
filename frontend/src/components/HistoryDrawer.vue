@@ -1,9 +1,16 @@
 <template>
   <Teleport to="body">
+    <!-- Backdrop overlay -->
     <Transition name="fade">
-      <div v-if="open" class="overlay" @click.self="close" />
+      <div
+        v-if="open"
+        class="overlay"
+        @click.self="close"
+        aria-hidden="true"
+      />
     </Transition>
 
+    <!-- Drawer panel -->
     <Transition name="slide">
       <div
         v-if="open"
@@ -13,13 +20,24 @@
         aria-label="搜索历史抽屉"
       >
         <div class="drawer-head">
-          <button ref="closeBtn" type="button" class="close" aria-label="关闭" @click="close">
+          <h2 class="drawer-title">搜索历史</h2>
+          <button
+            ref="closeBtn"
+            type="button"
+            class="close"
+            aria-label="关闭历史抽屉"
+            @click="close"
+          >
             关闭
           </button>
         </div>
 
         <div class="drawer-body">
-          <HistoryPanel :items="items" @select="selectAndClose" @clear="emit('clear')" />
+          <HistoryPanel
+            :items="items"
+            @select="selectAndClose"
+            @clear="$emit('clear')"
+          />
         </div>
       </div>
     </Transition>
@@ -54,7 +72,7 @@ function selectAndClose(q: string) {
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
-    emit('close');
+    close();
   }
 }
 
@@ -82,6 +100,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Overlay backdrop */
 .overlay {
   position: fixed;
   inset: 0;
@@ -90,43 +109,69 @@ onBeforeUnmount(() => {
   z-index: 50;
 }
 
+/* Drawer panel */
 .drawer {
   position: fixed;
-  right: 0;
+  left: 0;
   top: 0;
   height: 100%;
   width: min(92vw, 360px);
+  max-width: 400px;
   background: var(--bg-primary);
-  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
   z-index: 51;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-md);
 }
 
+/* Drawer header */
 .drawer-head {
-  padding: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
 }
 
+.drawer-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Close button */
 .close {
   border: 1px solid var(--border-color);
   background: var(--surface-bg);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  padding: 10px 14px;
   cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: background var(--transition-fast);
+  min-height: 44px;
 }
 
 .close:hover {
   background: var(--surface-hover);
 }
 
-.drawer-body {
-  overflow: auto;
+.close:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
 }
 
+/* Drawer body */
+.drawer-body {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Transitions */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -144,6 +189,27 @@ onBeforeUnmount(() => {
 
 .slide-enter-from,
 .slide-leave-to {
-  transform: translateX(100%);
+  transform: translateX(-100%);
+}
+
+/* ========================================
+   Responsive Styles
+   ======================================== */
+@media (min-width: 768px) {
+  .drawer {
+    width: 320px;
+  }
+}
+
+/* ========================================
+   Reduced Motion
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  .fade-enter-active,
+  .fade-leave-active,
+  .slide-enter-active,
+  .slide-leave-active {
+    transition: none;
+  }
 }
 </style>

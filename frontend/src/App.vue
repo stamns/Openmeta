@@ -9,12 +9,14 @@
     />
 
     <div class="layout">
+      <!-- 左侧边栏: 搜索历史 (中大屏) -->
       <aside class="sidebar sidebar-left">
         <div class="card">
           <HistoryPanel :items="history" @select="selectHistory" @clear="clearHistory" />
         </div>
       </aside>
 
+      <!-- 主内容区 -->
       <section class="main">
         <div class="card main-card">
           <SearchBar
@@ -39,6 +41,7 @@
         </div>
       </section>
 
+      <!-- 右侧边栏: 使用提示 (大屏) -->
       <aside class="sidebar sidebar-right">
         <div class="card side-card">
           <h2 class="side-title">使用提示</h2>
@@ -51,6 +54,7 @@
       </aside>
     </div>
 
+    <!-- 页面底部 -->
     <footer class="footer" aria-label="页面底部">
       <a href="/health" target="_blank" rel="noreferrer">健康检查</a>
       <span class="sep" aria-hidden="true">·</span>
@@ -59,6 +63,7 @@
       <span class="muted">Theme: {{ isDark ? 'dark' : 'light' }}</span>
     </footer>
 
+    <!-- 移动端历史抽屉 -->
     <HistoryDrawer
       :open="historyOpen"
       :items="history"
@@ -104,24 +109,31 @@ function writeHistory(next: string[]) {
   }
 }
 
+// Reactive state
 const query = ref('');
 const loading = ref(false);
 const searched = ref(false);
 const result = ref<SearchResponse | null>(null);
 const durationMs = ref(0);
 const isOffline = ref(!window.navigator.onLine);
+const isOffline = ref(false);
 const historyOpen = ref(false);
 const history = ref<string[]>(readHistory());
 
+// Error handling
 const { error, handleError, clearError } = useErrorHandler();
+
+// Theme
 const { isDark, toggleTheme } = useTheme();
 
+// Computed items from result
 const items = computed<SearchItem[]>(() => {
   const r = result.value;
   if (!r) return [];
   return r.items || [];
 });
 
+// History management
 function pushHistory(q: string) {
   const normalized = q.trim();
   if (!normalized) return;
@@ -142,6 +154,7 @@ function selectHistory(q: string) {
   doSearch();
 }
 
+// Search functionality
 async function doSearch() {
   if (!query.value.trim()) return;
 
@@ -163,11 +176,14 @@ async function doSearch() {
   }
 }
 
+// Online/offline status
 function updateOnlineStatus() {
   isOffline.value = !window.navigator.onLine;
 }
 
+// Lifecycle hooks
 onMounted(() => {
+  isOffline.value = !window.navigator.onLine;
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
 });
@@ -198,18 +214,102 @@ onUnmounted(() => {
   display: none;
 }
 
+/* Page Layout */
+.page {
+  min-height: 100svh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 32px 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding: 40px 32px;
+  }
+}
+
+/* Layout Grid */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (min-width: 768px) {
+  .layout {
+    grid-template-columns: 240px 1fr;
+    gap: 20px;
+    margin-top: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: 260px 1fr 280px;
+    gap: 24px;
+    margin-top: 24px;
+  }
+}
+
+/* Sidebar */
+.sidebar {
+  display: none;
+}
+
+.sidebar-left {
+  display: none;
+}
+
+.sidebar-right {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .sidebar-left {
+    display: block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sidebar-right {
+    display: block;
+  }
+}
+
+/* Main Content */
+.main {
+  min-width: 0;
+}
+
 .main-card {
   padding: 18px 16px 14px;
 }
 
+@media (min-width: 768px) {
+  .main-card {
+    padding: 24px 20px 18px;
+  }
+}
+
+/* Empty State */
 .empty {
   margin-top: 18px;
   text-align: center;
   color: var(--text-secondary);
+  padding: 24px;
 }
 
+/* Footer */
 .footer {
   margin-top: 28px;
+  margin-top: 48px;
   color: var(--text-secondary);
   font-size: 14px;
   display: flex;
@@ -217,6 +317,14 @@ onUnmounted(() => {
   justify-content: center;
   flex-wrap: wrap;
   gap: 6px;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .footer {
+    margin-top: 56px;
+    gap: 6px;
+  }
 }
 
 .footer a {
@@ -230,12 +338,18 @@ onUnmounted(() => {
 
 .sep {
   margin: 0 6px;
+  color: var(--text-primary);
+}
+
+.sep {
+  margin: 0 4px;
 }
 
 .muted {
   opacity: 0.85;
 }
 
+/* Side Card (Tips) */
 .side-card {
   padding: 14px;
 }
@@ -251,7 +365,44 @@ onUnmounted(() => {
   padding-left: 18px;
   color: var(--text-secondary);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+
+/* Card Styles */
+.card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Visibility */
+.mobile-only {
+  display: inline-flex;
+}
+
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none;
+  }
+
+  .desktop-only {
+    display: inline-flex;
+  }
+}
+
+/* Online/Offline Status */
+.online {
+  color: var(--success-color);
+}
+
+.offline {
+  color: var(--error-color);
+  font-weight: 700;
 }
 
 @media (min-width: 768px) {
