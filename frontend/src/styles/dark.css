@@ -1,32 +1,4 @@
+/* Dark Theme Overrides - Most variables are now in variables.css */
 :root[data-theme='dark'] {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2d2d2d;
-  --text-primary: #f0f0f0;
-  --text-secondary: #b0b0b0;
-  --border-color: #3a3a3a;
-
-  --accent-color: #4da6ff;
-  --accent-hover: #3399ff;
-
-  --success-color: #34d399;
-  --error-color: #f87171;
-  --warning-color: #fbbf24;
-
-  --code-bg: #0b1020;
-  --code-text: #e2e8f0;
-
-  --critical-bg: #2b1515;
-  --critical-border: #7f1d1d;
-  --critical-text: #fecaca;
-
-  --error-bg: #2b1118;
-  --error-border: #9f1239;
-  --error-text: #fecdd3;
-
-  --warning-bg: #2a1f0a;
-  --warning-border: #b45309;
-  --warning-text: #fde68a;
-
-  --surface-bg: #202020;
-  --surface-hover: #262626;
+  /* These can override variables.css if needed for dark theme specific styles */
 }
