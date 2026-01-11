@@ -54,7 +54,7 @@ function formatTime(timestamp: string) {
 .error-container {
   margin-top: 20px;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   gap: 16px;
   border: 1px solid transparent;
@@ -64,8 +64,14 @@ function formatTime(timestamp: string) {
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .critical {
@@ -78,11 +84,21 @@ function formatTime(timestamp: string) {
   background-color: rgba(239, 68, 68, 0.05);
   border-color: var(--error-color);
   color: var(--error-color);
+  background-color: var(--critical-bg);
+  border-color: var(--critical-border);
+  color: var(--critical-text);
+}
+
+.error {
+  background-color: var(--error-bg);
+  border-color: var(--error-border);
+  color: var(--error-text);
 }
 
 .warning {
   background-color: var(--warning-bg);
   border-color: var(--warning-text);
+  border-color: var(--warning-border);
   color: var(--warning-text);
 }
 
@@ -97,13 +113,13 @@ function formatTime(timestamp: string) {
 .error-title {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .error-meta {
   margin: 4px 0 0;
   font-size: 12px;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .error-details {
@@ -111,6 +127,9 @@ function formatTime(timestamp: string) {
   padding: 10px;
   background: var(--bg-tertiary);
   border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   overflow: auto;
   max-height: 200px;
@@ -127,20 +146,22 @@ pre {
   margin-top: 16px;
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 button {
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.2s;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .retry-btn {
   background-color: var(--accent-color);
   color: white;
+  color: var(--on-accent);
 }
 
 .retry-btn:hover {
@@ -155,12 +176,19 @@ button {
 
 .clear-btn:hover {
   background-color: var(--bg-secondary);
+  background-color: transparent;
+  border-color: currentColor;
+  color: inherit;
+}
+
+.clear-btn:hover {
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .details-btn {
   background-color: transparent;
   color: inherit;
   text-decoration: underline;
-  padding: 6px 0;
+  border-color: transparent;
 }
 </style>
