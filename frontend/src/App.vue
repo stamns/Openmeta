@@ -115,7 +115,6 @@ const loading = ref(false);
 const searched = ref(false);
 const result = ref<SearchResponse | null>(null);
 const durationMs = ref(0);
-const isOffline = ref(!window.navigator.onLine);
 const isOffline = ref(false);
 const historyOpen = ref(false);
 const history = ref<string[]>(readHistory());
@@ -195,25 +194,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 28px 16px;
-  background-color: var(--bg-primary);
-}
-
-.layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.sidebar {
-  display: none;
-}
-
 /* Page Layout */
 .page {
   min-height: 100svh;
@@ -403,26 +383,5 @@ onUnmounted(() => {
 .offline {
   color: var(--error-color);
   font-weight: 700;
-}
-
-@media (min-width: 768px) {
-  .layout {
-    grid-template-columns: 280px 1fr;
-    align-items: start;
-  }
-
-  .sidebar-left {
-    display: block;
-  }
-}
-
-@media (min-width: 1024px) {
-  .layout {
-    grid-template-columns: 260px 1fr 260px;
-  }
-
-  .sidebar-right {
-    display: block;
-  }
 }
 </style>
