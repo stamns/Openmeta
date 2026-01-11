@@ -1,55 +1,57 @@
 <template>
   <main class="wrap">
-    <header class="header">
-      <h1>OpenMeta</h1>
-      <p class="sub">网盘聚合搜索引擎（FastAPI + PanSou + Vue3）</p>
-    </header>
+    <Header @toggle-history="showMobileHistory = !showMobileHistory" />
 
-    <section class="search">
-      <input
-        v-model="q"
-        class="input"
-        placeholder="输入关键词，例如：三体 / 电影 / PDF"
-        @keydown.enter="doSearch"
-        :disabled="loading"
-      />
-      <button class="btn" :disabled="loading || !q.trim()" @click="doSearch">
-        <span v-if="loading" class="spinner"></span>
-        {{ loading ? '搜索中…' : '搜索' }}
-      </button>
-    </section>
-
-    <!-- 错误提示组件 -->
-    <ErrorMessage 
-      :error="error" 
-      @retry="doSearch" 
-      @clear="clearError"
-    />
-
-    <section v-if="result && !error" class="result">
-      <div class="meta">
-        <span>耗时：{{ durationMs }}ms</span>
-        <span v-if="result.warning" class="warn">⚠️ {{ result.warning }}</span>
+    <div class="layout-container">
+      <!-- 移动端搜索历史抽屉 -->
+      <div v-if="showMobileHistory" class="mobile-drawer-overlay" @click="showMobileHistory = false">
+        <aside class="mobile-drawer" @click.stop>
+          <div class="drawer-header">
+            <h3>搜索历史</h3>
+            <button @click="showMobileHistory = false">✕</button>
+          </div>
+          <ul class="history-list">
+            <li v-for="item in history" :key="item" @click="q = item; doSearch(); showMobileHistory = false">
+              {{ item }}
+            </li>
+          </ul>
+        </aside>
       </div>
 
-      <ul v-if="items.length" class="list">
-        <li v-for="(item, idx) in items" :key="idx" class="item">
-          <div class="title">{{ item.title || item.name || item.filename || '未命名资源' }}</div>
-          <div class="desc">
-            <a v-if="item.url" :href="item.url" target="_blank" rel="noreferrer">打开链接</a>
-            <span v-else class="muted">无链接字段</span>
-          </div>
-        </li>
-      </ul>
+      <!-- 左侧边栏 (中大屏) -->
+      <aside class="sidebar-left" v-if="searched && history.length > 0">
+        <h3>搜索历史</h3>
+        <ul class="history-list">
+          <li v-for="item in history" :key="item" @click="q = item; doSearch()">
+            {{ item }}
+          </li>
+        </ul>
+      </aside>
 
-      <details v-else class="raw">
-        <summary>无可展示列表字段，查看原始返回</summary>
-        <pre>{{ JSON.stringify(result, null, 2) }}</pre>
-      </details>
-    </section>
+      <div class="main-content">
+        <SearchBar v-model="q" :loading="loading" @search="doSearch" />
 
-    <div v-if="!loading && !error && searched && items.length === 0" class="empty">
-      未找到相关资源，请尝试其他关键词
+        <!-- 错误提示组件 -->
+        <ErrorMessage 
+          :error="error" 
+          @retry="doSearch" 
+          @clear="clearError"
+        />
+
+        <SearchResults v-if="result && !error" :result="result" :duration-ms="durationMs" />
+
+        <div v-if="!loading && !error && searched && items.length === 0" class="empty">
+          未找到相关资源，请尝试其他关键词
+        </div>
+      </div>
+
+      <!-- 右侧边栏 (大屏) -->
+      <aside class="sidebar-right">
+        <div class="info-card" v-if="searched && items.length > 0">
+          <h3>统计信息</h3>
+          <p>找到 {{ items.length }} 条结果</p>
+        </div>
+      </aside>
     </div>
 
     <footer class="footer">
@@ -69,6 +71,11 @@ import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { search, SearchItem, SearchResponse } from '@/api/search';
 import { useErrorHandler } from '@/hooks/useErrorHandler';
 import ErrorMessage from '@/components/ErrorMessage.vue';
+import Header from '@/components/Header.vue';
+import SearchBar from '@/components/SearchBar.vue';
+import SearchResults from '@/components/SearchResults.vue';
+import '@/styles/variables.css';
+import '@/styles/responsive.css';
 
 const q = ref('');
 const loading = ref(false);
@@ -76,8 +83,11 @@ const searched = ref(false);
 const result = ref<SearchResponse | null>(null);
 const durationMs = ref(0);
 const isOffline = ref(!window.navigator.onLine);
+const showMobileHistory = ref(false);
 
 const { error, handleError, clearError } = useErrorHandler();
+
+const history = ref<string[]>(JSON.parse(localStorage.getItem('search_history') || '[]'));
 
 const items = computed<SearchItem[]>(() => {
   const r = result.value;
@@ -87,6 +97,13 @@ const items = computed<SearchItem[]>(() => {
 
 async function doSearch() {
   if (!q.value.trim()) return;
+
+  // Add to history
+  if (!history.value.includes(q.value.trim())) {
+    history.value.unshift(q.value.trim());
+    history.value = history.value.slice(0, 10); // Keep last 10
+    localStorage.setItem('search_history', JSON.stringify(history.value));
+  }
   
   clearError();
   loading.value = true;
@@ -121,174 +138,138 @@ onUnmounted(() => {
 
 <style scoped>
 .wrap {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 32px 16px;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
     "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  min-height: 100vh;
 }
 
-.header h1 {
-  margin: 0;
-  font-size: 32px;
-  color: #4f46e5;
-}
-
-.sub {
-  margin-top: 6px;
-  color: #6b7280;
-}
-
-.search {
+.layout-container {
   display: flex;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 24px;
 }
 
-.input {
+.sidebar-left, .sidebar-right {
+  width: 200px;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .sidebar-left {
+    display: block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sidebar-right {
+    display: block;
+  }
+}
+
+.main-content {
   flex: 1;
-  padding: 12px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  outline: none;
-  transition: border-color 0.2s;
+  min-width: 0;
 }
 
-.input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+.mobile-drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
 }
 
-.btn {
-  padding: 10px 20px;
+.mobile-drawer {
+  width: 280px;
+  background: var(--bg-primary);
+  height: 100%;
+  padding: 20px;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.drawer-header h3 {
+  margin: 0;
+}
+
+.drawer-header button {
+  background: none;
   border: none;
-  border-radius: 12px;
-  background: #4f46e5;
-  color: white;
+  font-size: 24px;
   cursor: pointer;
-  font-weight: 600;
+  color: var(--text-primary);
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: background 0.2s;
+  justify-content: center;
 }
 
-.btn:hover:not(:disabled) {
-  background: #4338ca;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.result {
-  margin-top: 18px;
-}
-
-.meta {
-  display: flex;
-  gap: 12px;
-  color: #6b7280;
-  font-size: 14px;
-  margin-bottom: 10px;
-  align-items: center;
-}
-
-.warn {
-  color: #b45309;
-  background: #fffbeb;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.list {
+.history-list {
   list-style: none;
   padding: 0;
-  margin: 0;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
-  background: white;
+  margin: 12px 0;
 }
 
-.item {
-  padding: 16px;
-  border-top: 1px solid #e5e7eb;
-  transition: background 0.2s;
-}
-
-.item:hover {
-  background: #f9fafb;
-}
-
-.item:first-child {
-  border-top: none;
-}
-
-.title {
-  font-weight: 600;
-  color: #111827;
-}
-
-.desc {
-  margin-top: 6px;
-  color: #4b5563;
+.history-list li {
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
   font-size: 14px;
+  color: var(--text-secondary);
+  transition: background 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.desc a {
-  color: #4f46e5;
-  text-decoration: none;
+.history-list li:hover {
+  background: var(--bg-secondary);
+  color: var(--accent-color);
 }
 
-.desc a:hover {
-  text-decoration: underline;
+.info-card {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
 }
 
-.muted {
-  color: #9ca3af;
+.info-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
 }
 
 .empty {
   margin-top: 40px;
   text-align: center;
-  color: #6b7280;
-}
-
-.raw {
-  margin-top: 10px;
-}
-
-pre {
-  background: #111827;
-  color: #e5e7eb;
-  padding: 12px;
-  border-radius: 10px;
-  overflow: auto;
+  color: var(--text-secondary);
 }
 
 .footer {
   margin-top: 48px;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .footer a {
@@ -297,19 +278,19 @@ pre {
 }
 
 .footer a:hover {
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .sep {
-  margin: 0 8px;
+  margin: 0 4px;
 }
 
 .online {
-  color: #10b981;
+  color: var(--success-color);
 }
 
 .offline {
-  color: #ef4444;
+  color: var(--error-color);
   font-weight: bold;
 }
 </style>
