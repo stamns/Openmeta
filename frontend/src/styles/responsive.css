@@ -1,0 +1,87 @@
+/* Typography */
+@media (max-width: 479px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+  body {
+    font-size: 15px;
+  }
+}
+
+/* Touch targets */
+@media (max-width: 767px) {
+  button,
+  input[type='text'],
+  input[type='search'] {
+    min-height: 44px;
+  }
+}
+
+/* Layout */
+.page {
+  min-height: 100svh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 16px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.sidebar {
+  display: none;
+}
+
+.sidebar .card,
+.main .card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (min-width: 768px) {
+  .layout {
+    grid-template-columns: 280px 1fr;
+    align-items: start;
+  }
+
+  .sidebar-left {
+    display: block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: 260px 1fr 260px;
+  }
+
+  .sidebar-right {
+    display: block;
+  }
+}
+
+.mobile-only {
+  display: inline-flex;
+}
+
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none;
+  }
+
+  .desktop-only {
+    display: inline-flex;
+  }
+}
