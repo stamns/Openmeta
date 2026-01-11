@@ -59,6 +59,8 @@ function formatTime(timestamp: string) {
   gap: 16px;
   border: 1px solid transparent;
   animation: slideIn 0.3s ease-out;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 @keyframes slideIn {
@@ -73,6 +75,15 @@ function formatTime(timestamp: string) {
 }
 
 .critical {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: var(--error-color);
+  color: var(--error-color);
+}
+
+.error {
+  background-color: rgba(239, 68, 68, 0.05);
+  border-color: var(--error-color);
+  color: var(--error-color);
   background-color: var(--critical-bg);
   border-color: var(--critical-border);
   color: var(--critical-text);
@@ -86,6 +97,7 @@ function formatTime(timestamp: string) {
 
 .warning {
   background-color: var(--warning-bg);
+  border-color: var(--warning-text);
   border-color: var(--warning-border);
   color: var(--warning-text);
 }
@@ -113,12 +125,15 @@ function formatTime(timestamp: string) {
 .error-details {
   margin-top: 12px;
   padding: 10px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   font-size: 12px;
   overflow: auto;
   max-height: 200px;
+  color: var(--text-primary);
 }
 
 pre {
@@ -145,6 +160,7 @@ button {
 
 .retry-btn {
   background-color: var(--accent-color);
+  color: white;
   color: var(--on-accent);
 }
 
@@ -153,6 +169,13 @@ button {
 }
 
 .clear-btn {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.clear-btn:hover {
+  background-color: var(--bg-secondary);
   background-color: transparent;
   border-color: currentColor;
   color: inherit;

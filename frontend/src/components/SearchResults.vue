@@ -1,4 +1,13 @@
 <template>
+  <section v-if="result" class="result">
+    <div class="meta">
+      <span>耗时：{{ durationMs }}ms</span>
+      <span v-if="result.warning" class="warn">⚠️ {{ result.warning }}</span>
+    </div>
+
+    <ul v-if="items.length" class="list">
+      <li v-for="(item, idx) in items" :key="idx" class="item" v-longpress="() => copyToClipboard(item.url)">
+        <div class="title">{{ item.title || item.name || item.filename || '未命名资源' }}</div>
   <section class="result" aria-label="搜索结果">
     <div class="meta">
       <span>耗时：{{ durationMs }}ms</span>
@@ -26,6 +35,52 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { SearchItem, SearchResponse } from '@/api/search';
+
+const props = defineProps<{
+  result: SearchResponse | null;
+  durationMs: number;
+}>();
+
+const items = computed<SearchItem[]>(() => {
+  const r = props.result;
+  if (!r) return [];
+  return r.items || [];
+});
+
+const copyToClipboard = (text?: string) => {
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    // Optional feedback
+  });
+};
+
+const vLongpress = {
+  mounted(el: HTMLElement, binding: any) {
+    let timer: any = null;
+    const start = (e: any) => {
+      if (e.type === 'click' && e.button !== 0) return;
+      if (timer === null) {
+        timer = setTimeout(() => {
+          binding.value(e);
+        }, 600);
+      }
+    };
+    const cancel = () => {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', start);
+    el.addEventListener('click', cancel);
+    el.addEventListener('mouseout', cancel);
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('touchcancel', cancel);
+  },
+};
 import type { SearchItem, SearchResponse } from '@/api/search';
 
 defineProps<{
@@ -37,11 +92,17 @@ defineProps<{
 
 <style scoped>
 .result {
+  margin-top: 18px;
   margin-top: 16px;
 }
 
 .meta {
   display: flex;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 10px;
+  align-items: center;
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
@@ -60,6 +121,8 @@ defineProps<{
 .warn {
   color: var(--warning-text);
   background: var(--warning-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
   border: 1px solid var(--warning-border);
   padding: 2px 8px;
   border-radius: 999px;
@@ -70,6 +133,9 @@ defineProps<{
   padding: 0;
   margin: 0;
   border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card-bg);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface-bg);
@@ -78,6 +144,12 @@ defineProps<{
 .item {
   padding: 16px;
   border-top: 1px solid var(--border-color);
+  transition: background 0.2s;
+  cursor: default;
+}
+
+.item:hover {
+  background: var(--bg-secondary);
   transition: background var(--transition-fast);
   -webkit-user-select: text;
   user-select: text;
@@ -93,6 +165,7 @@ defineProps<{
 }
 
 .title {
+  font-weight: 600;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -113,11 +186,20 @@ defineProps<{
 }
 
 .muted {
+  color: var(--text-muted);
   color: color-mix(in srgb, var(--text-secondary) 60%, transparent);
 }
 
 .raw {
   margin-top: 10px;
+  color: var(--text-primary);
+}
+
+pre {
+  background: #111827;
+  color: #e5e7eb;
+  padding: 12px;
+  border-radius: 10px;
 }
 
 pre {
