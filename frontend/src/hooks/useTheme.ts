@@ -1,18 +1,3 @@
-import { ref } from 'vue';
-
-export type Theme = 'light' | 'dark';
-
-const theme = ref<Theme>('light');
-const isDark = ref(false);
-let initialized = false;
-
-export function useTheme() {
-  const setTheme = (newTheme: Theme) => {
-    theme.value = newTheme;
-    isDark.value = newTheme === 'dark';
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 export type Theme = 'light' | 'dark';
@@ -70,29 +55,6 @@ export function useTheme() {
     setTheme(newTheme);
   };
 
-  if (!initialized && typeof window !== 'undefined') {
-    initialized = true;
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else if (systemPrefersDark) {
-      setTheme('dark');
-    } else {
-      setTheme('light');
-    }
-
-    // Listen for system theme changes
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      if (!localStorage.getItem('theme')) {
-        setTheme(e.matches ? 'dark' : 'light');
-      }
-    });
-  }
-    setTheme(isDark.value ? 'light' : 'dark');
-  };
-
   const clearThemePreference = () => {
     if (isBrowser) {
       try {
@@ -143,7 +105,6 @@ export function useTheme() {
     theme,
     isDark,
     toggleTheme,
-    setTheme
     setTheme,
     clearThemePreference,
     hasStoredPreference,

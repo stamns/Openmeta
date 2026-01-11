@@ -1,32 +1,35 @@
 <template>
-  <section v-if="result" class="result">
-    <div class="meta">
-      <span>耗时：{{ durationMs }}ms</span>
-      <span v-if="result.warning" class="warn">⚠️ {{ result.warning }}</span>
-    </div>
-
-    <ul v-if="items.length" class="list">
-      <li v-for="(item, idx) in items" :key="idx" class="item" v-longpress="() => copyToClipboard(item.url)">
-        <div class="title">{{ item.title || item.name || item.filename || '未命名资源' }}</div>
   <section class="result" aria-label="搜索结果">
-    <div class="meta">
-      <span>耗时：{{ durationMs }}ms</span>
+    <!-- Result metadata -->
+    <div class="meta" role="status">
+      <span class="duration">耗时：{{ durationMs }}ms</span>
       <span class="provider">{{ result.provider }}</span>
-      <span v-if="result.warning" class="warn" role="status">{{ result.warning }}</span>
+      <span v-if="result.warning" class="warn" role="alert">{{ result.warning }}</span>
     </div>
 
+    <!-- Results list -->
     <ul v-if="items.length" class="list">
       <li v-for="(item, idx) in items" :key="idx" class="item">
         <div class="title">
           {{ item.title || item.name || item.filename || '未命名资源' }}
         </div>
         <div class="desc">
-          <a v-if="item.url" :href="item.url" target="_blank" rel="noreferrer">打开链接</a>
+          <a
+            v-if="item.url"
+            :href="item.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link"
+          >
+            打开链接
+            <span class="sr-only">(在新窗口中打开)</span>
+          </a>
           <span v-else class="muted">无链接字段</span>
         </div>
       </li>
     </ul>
 
+    <!-- Raw JSON fallback -->
     <details v-else class="raw">
       <summary>无可展示列表字段，查看原始返回</summary>
       <pre>{{ JSON.stringify(result, null, 2) }}</pre>
@@ -35,52 +38,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { SearchItem, SearchResponse } from '@/api/search';
-
-const props = defineProps<{
-  result: SearchResponse | null;
-  durationMs: number;
-}>();
-
-const items = computed<SearchItem[]>(() => {
-  const r = props.result;
-  if (!r) return [];
-  return r.items || [];
-});
-
-const copyToClipboard = (text?: string) => {
-  if (!text) return;
-  navigator.clipboard.writeText(text).then(() => {
-    // Optional feedback
-  });
-};
-
-const vLongpress = {
-  mounted(el: HTMLElement, binding: any) {
-    let timer: any = null;
-    const start = (e: any) => {
-      if (e.type === 'click' && e.button !== 0) return;
-      if (timer === null) {
-        timer = setTimeout(() => {
-          binding.value(e);
-        }, 600);
-      }
-    };
-    const cancel = () => {
-      if (timer !== null) {
-        clearTimeout(timer);
-        timer = null;
-      }
-    };
-    el.addEventListener('mousedown', start);
-    el.addEventListener('touchstart', start);
-    el.addEventListener('click', cancel);
-    el.addEventListener('mouseout', cancel);
-    el.addEventListener('touchend', cancel);
-    el.addEventListener('touchcancel', cancel);
-  },
-};
 import type { SearchItem, SearchResponse } from '@/api/search';
 
 defineProps<{
@@ -91,18 +48,14 @@ defineProps<{
 </script>
 
 <style scoped>
+/* Result container */
 .result {
-  margin-top: 18px;
   margin-top: 16px;
 }
 
+/* Metadata row */
 .meta {
   display: flex;
-  gap: 12px;
-  color: var(--text-secondary);
-  font-size: 14px;
-  margin-bottom: 10px;
-  align-items: center;
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
@@ -116,26 +69,24 @@ defineProps<{
   border: 1px solid var(--border-color);
   border-radius: 999px;
   background: var(--bg-secondary);
+  font-size: 12px;
 }
 
 .warn {
   color: var(--warning-text);
   background: var(--warning-bg);
   padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--warning-border);
-  padding: 2px 8px;
   border-radius: 999px;
+  border: 1px solid var(--warning-border);
+  font-size: 12px;
 }
 
+/* Results list */
 .list {
   list-style: none;
   padding: 0;
   margin: 0;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--card-bg);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface-bg);
@@ -144,69 +95,141 @@ defineProps<{
 .item {
   padding: 16px;
   border-top: 1px solid var(--border-color);
-  transition: background 0.2s;
-  cursor: default;
-}
-
-.item:hover {
-  background: var(--bg-secondary);
   transition: background var(--transition-fast);
+  cursor: default;
   -webkit-user-select: text;
   user-select: text;
-  -webkit-touch-callout: default;
-}
-
-.item:hover {
-  background: var(--surface-hover);
 }
 
 .item:first-child {
   border-top: none;
 }
 
-.title {
-  font-weight: 600;
-  font-weight: 700;
-  color: var(--text-primary);
+.item:hover {
+  background: var(--surface-hover);
 }
 
+.item:focus-within {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+
+/* Title styling */
+.title {
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* Description/link styling */
 .desc {
   margin-top: 6px;
   color: var(--text-secondary);
   font-size: 14px;
 }
 
-.desc a {
+.link {
   color: var(--accent-color);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.desc a:hover {
+.link:hover {
   text-decoration: underline;
+}
+
+.link:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .muted {
   color: var(--text-muted);
-  color: color-mix(in srgb, var(--text-secondary) 60%, transparent);
 }
 
+/* Raw JSON fallback */
 .raw {
   margin-top: 10px;
   color: var(--text-primary);
 }
 
-pre {
-  background: #111827;
-  color: #e5e7eb;
-  padding: 12px;
-  border-radius: 10px;
-}
-
-pre {
+.raw pre {
   background: var(--code-bg);
   color: var(--code-text);
   padding: 12px;
   border-radius: var(--radius-md);
   overflow: auto;
+  max-height: 300px;
+  font-size: 13px;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ========================================
+   Responsive Styles
+   ======================================== */
+@media (max-width: 479px) {
+  .item {
+    padding: 12px;
+  }
+
+  .meta {
+    font-size: 13px;
+  }
+
+  .title {
+    font-size: 15px;
+  }
+
+  .desc {
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+  .list {
+    width: 100%;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .item {
+    padding: 18px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .item {
+    padding: 18px;
+  }
+}
+
+/* ========================================
+   Print Styles
+   ======================================== */
+@media print {
+  .item {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+  }
+
+  .link {
+    color: #000;
+    text-decoration: underline;
+  }
 }
 </style>

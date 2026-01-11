@@ -1,29 +1,41 @@
 <template>
-  <div v-if="error" class="error-container" :class="error.severity">
+  <div v-if="error" class="error-container" :class="error.severity" role="alert" aria-live="assertive">
     <div class="error-icon">
-      <span v-if="error.severity === 'critical'">🚨</span>
-      <span v-else-if="error.severity === 'error'">❌</span>
-      <span v-else>⚠️</span>
+      <span v-if="error.severity === 'critical'" aria-hidden="true">🚨</span>
+      <span v-else-if="error.severity === 'error'" aria-hidden="true">❌</span>
+      <span v-else aria-hidden="true">⚠️</span>
     </div>
+
     <div class="error-content">
       <h3 class="error-title">{{ isZh ? error.message.zh : error.message.en }}</h3>
+
       <p v-if="error.path" class="error-meta">
         {{ isZh ? '发生位置' : 'Location' }}: {{ error.path }}
       </p>
+
       <p class="error-meta">
         {{ isZh ? '时间' : 'Time' }}: {{ formatTime(error.timestamp) }}
       </p>
+
       <div v-if="showDetails && error.details" class="error-details">
         <pre>{{ JSON.stringify(error.details, null, 2) }}</pre>
       </div>
+
       <div class="error-actions">
         <button class="retry-btn" @click="$emit('retry')">
           {{ isZh ? '重试' : 'Retry' }}
         </button>
+
         <button class="clear-btn" @click="$emit('clear')">
           {{ isZh ? '关闭' : 'Close' }}
         </button>
-        <button v-if="error.details" class="details-btn" @click="showDetails = !showDetails">
+
+        <button
+          v-if="error.details"
+          class="details-btn"
+          @click="showDetails = !showDetails"
+          :aria-expanded="showDetails"
+        >
           {{ showDetails ? (isZh ? '隐藏详情' : 'Hide Details') : (isZh ? '查看详情' : 'Show Details') }}
         </button>
       </div>
@@ -43,6 +55,7 @@ const props = defineProps<{
 defineEmits(['retry', 'clear']);
 
 const showDetails = ref(false);
+
 const isZh = computed(() => props.lang !== 'en');
 
 function formatTime(timestamp: string) {
@@ -51,6 +64,7 @@ function formatTime(timestamp: string) {
 </script>
 
 <style scoped>
+/* Error container */
 .error-container {
   margin-top: 20px;
   padding: 16px;
@@ -74,16 +88,8 @@ function formatTime(timestamp: string) {
   }
 }
 
+/* Severity-specific styles */
 .critical {
-  background-color: rgba(239, 68, 68, 0.1);
-  border-color: var(--error-color);
-  color: var(--error-color);
-}
-
-.error {
-  background-color: rgba(239, 68, 68, 0.05);
-  border-color: var(--error-color);
-  color: var(--error-color);
   background-color: var(--critical-bg);
   border-color: var(--critical-border);
   color: var(--critical-text);
@@ -97,17 +103,20 @@ function formatTime(timestamp: string) {
 
 .warning {
   background-color: var(--warning-bg);
-  border-color: var(--warning-text);
   border-color: var(--warning-border);
   color: var(--warning-text);
 }
 
+/* Icon */
 .error-icon {
   font-size: 24px;
+  flex-shrink: 0;
 }
 
+/* Content area */
 .error-content {
   flex: 1;
+  min-width: 0;
 }
 
 .error-title {
@@ -122,11 +131,10 @@ function formatTime(timestamp: string) {
   opacity: 0.9;
 }
 
+/* Details section */
 .error-details {
   margin-top: 12px;
   padding: 10px;
-  background: var(--bg-tertiary);
-  border-radius: 8px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -136,12 +144,13 @@ function formatTime(timestamp: string) {
   color: var(--text-primary);
 }
 
-pre {
+.error-details pre {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
+/* Action buttons */
 .error-actions {
   margin-top: 16px;
   display: flex;
@@ -149,33 +158,28 @@ pre {
   flex-wrap: wrap;
 }
 
-button {
+.error-actions button {
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   font-size: 14px;
   cursor: pointer;
   border: 1px solid transparent;
   transition: background var(--transition-fast), border-color var(--transition-fast);
+  min-height: 44px;
 }
 
 .retry-btn {
   background-color: var(--accent-color);
-  color: white;
   color: var(--on-accent);
+  border-color: var(--accent-color);
 }
 
 .retry-btn:hover {
   background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .clear-btn {
-  background-color: var(--bg-primary);
-  border-color: var(--border-color);
-  color: var(--text-primary);
-}
-
-.clear-btn:hover {
-  background-color: var(--bg-secondary);
   background-color: transparent;
   border-color: currentColor;
   color: inherit;
@@ -190,5 +194,37 @@ button {
   color: inherit;
   text-decoration: underline;
   border-color: transparent;
+}
+
+/* ========================================
+   Responsive Styles
+   ======================================== */
+@media (max-width: 479px) {
+  .error-container {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .error-title {
+    font-size: 15px;
+  }
+
+  .error-actions {
+    flex-direction: column;
+  }
+
+  .error-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ========================================
+   Reduced Motion
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  .error-container {
+    animation: none;
+  }
 }
 </style>
